@@ -120,6 +120,14 @@ data class YouTubeClient(
             useSignatureTimestamp = true
         )
 
+        val ANDROID_TESTSUITE = YouTubeClient(
+            clientName = "ANDROID_TESTSUITE",
+            clientVersion = "1.9",
+            clientId = "30",
+            userAgent = "com.google.android.youtube/1.9 (Linux; U; Android 14) gzip",
+            useSignatureTimestamp = true
+        )
+
         /**
          * Video not playable: Paid / Movie / Private / Age-restricted.
          * Note: The 'Authorization' key must be excluded from the header.
@@ -212,15 +220,17 @@ data class YouTubeClient(
         )
 
         /**
-         * Internal YT client for an unreleased YT client. May stop working at any time.
+         * Apple visionOS client — the one client NewPipe switched to when YouTube started
+         * enforcing SABR streaming on the mobile clients (formats arrive without url /
+         * signatureCipher). Version/device values mirror NewPipeExtractor ClientsConstants.
          */
         val VISIONOS = YouTubeClient(
             clientName = "VISIONOS",
-            clientVersion = "0.1",
+            clientVersion = "1.02",
             clientId = "101",
-            userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+            userAgent = "com.google.visionos.youtube/1.02 (RealityDevice14,1; U; CPU visionOS 25_6_0 like Mac OS X; en-US)",
             osName = "visionOS",
-            osVersion = "1.3.21O771",
+            osVersion = "25.6.0.23O471",
             deviceMake = "Apple",
             deviceModel = "RealityDevice14,1",
             friendlyName = "visionOS",

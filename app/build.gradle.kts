@@ -363,4 +363,6 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.media3.transformer)
 
+    testImplementation(libs.junit)
+
 }

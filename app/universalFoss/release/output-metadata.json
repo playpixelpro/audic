@@ -5,7 +5,7 @@
     "kind": "Directory"
   },
   "applicationId": "com.audic.music",
-  "variantName": "universalGmsRelease",
+  "variantName": "universalFossRelease",
   "elements": [
     {
       "type": "SINGLE",
@@ -13,7 +13,7 @@
       "attributes": [],
       "versionCode": 6,
       "versionName": "1.0.5",
-      "outputFile": "app-universal-gms-release.apk"
+      "outputFile": "app-universal-foss-release.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +22,14 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/app-universal-gms-release.dm"
+        "baselineProfiles/1/app-universal-foss-release.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/app-universal-gms-release.dm"
+        "baselineProfiles/0/app-universal-foss-release.dm"
       ]
     }
   ],

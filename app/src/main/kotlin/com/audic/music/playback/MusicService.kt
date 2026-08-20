@@ -166,6 +166,7 @@ import com.audic.music.playback.queues.Queue
 import com.audic.music.playback.queues.YouTubeQueue
 import com.audic.music.playback.queues.filterExplicit
 import com.audic.music.playback.queues.filterVideoSongs
+import com.audic.music.utils.BotDetectionMitigator
 import com.audic.music.utils.CoilBitmapLoader
 import com.audic.music.ui.screens.settings.DiscordPresenceManager
 import com.audic.music.utils.NetworkConnectivityObserver
@@ -213,8 +214,18 @@ import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration.Companion.seconds
 
+internal fun isExpiredStreamResponseCode(responseCode: Int?): Boolean =
+    responseCode == 403 || responseCode == 410
+
 private const val INSTANT_SILENCE_SKIP_STEP_MS = 15_000L
 private const val INSTANT_SILENCE_SKIP_SETTLE_MS = 350L
+
+private data class CachedStreamUrl(
+    val url: String,
+    val expiresAt: Long,
+    val headers: Map<String, String> = emptyMap(),
+    val clientName: String = "unknown",
+)
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -463,7 +474,10 @@ class MusicService :
     private var silenceSkipJob: Job? = null
 
     
-    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val songUrlCache = HashMap<String, CachedStreamUrl>()
+
+    @Volatile
+    private var currentStreamClient: String = "unknown"
 
     
     private val bypassCacheForQualityChange = mutableSetOf<String>()
@@ -2328,7 +2342,7 @@ class MusicService :
     
     private fun isExpiredUrlError(error: PlaybackException): Boolean {
         val responseCode = getHttpResponseCode(error)
-        return responseCode == 403
+        return isExpiredStreamResponseCode(responseCode)
     }
 
     
@@ -2479,7 +2493,10 @@ class MusicService :
         Timber.tag(TAG).d("Performing aggressive cache clear for $mediaId")
 
         
-        songUrlCache.remove("${mediaId}_${audioQuality.name}")
+        songUrlCache.keys
+            .filter { it.startsWith("${mediaId}_") }
+            .toList()
+            .forEach(songUrlCache::remove)
 
         
         try {
@@ -2638,12 +2655,34 @@ class MusicService :
     }
 
     
+    // Mirrors SmartTube's ErrorFixerController.applyNoPlaybackFix: the resolved stream was rejected
+    // by the CDN, so record the failing client (so the next resolve rotates past it) and refresh the
+    // guest session / PoToken before re-fetching.
+    private fun markStreamClientRejected(mediaId: String) {
+        val clientName = currentStreamClient
+        YTPlayerUtils.markClientRejected(mediaId, clientName)
+        Timber.tag(TAG).w("Stream rejected by CDN for $mediaId (client=$clientName) — rotating stream client")
+        scope.launch {
+            runCatching { com.audic.music.utils.cipher.CipherDeobfuscator.onStreamRejected() }
+                .onFailure { Timber.tag(TAG).w(it, "Cipher refresh on stream rejection failed") }
+        }
+        if (YouTube.cookie == null) {
+            scope.launch {
+                runCatching { BotDetectionMitigator.rotateGuestSession() }
+                    .onFailure { Timber.tag(TAG).w(it, "Guest session rotation failed") }
+            }
+        }
+    }
+
     private fun handleExpiredUrlError(mediaId: String?) {
         if (mediaId == null) {
             handleFinalFailure()
             return
         }
 
+        // CDN rejected the resolved stream (403/410). Rotate to a different stream client and
+        // refresh the guest session/PoToken so the re-resolve doesn't return the same rejected URL.
+        markStreamClientRejected(mediaId)
         incrementRetryCount(mediaId)
 
         
@@ -2677,6 +2716,7 @@ class MusicService :
             return
         }
 
+        markStreamClientRejected(mediaId)
         incrementRetryCount(mediaId)
 
         retryJob?.cancel()
@@ -2939,25 +2979,31 @@ class MusicService :
                         if (dataSpec.length >= 0) dataSpec.length else 1
                     )
                 ) {
-                    songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                    songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let {
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                        return@Factory dataSpec.withUri(it.first.toUri())
+                        currentStreamClient = it.clientName
+                        return@Factory dataSpec.buildUpon().setUri(it.url.toUri())
+                            .setHttpRequestHeaders(dataSpec.httpRequestHeaders + it.headers).build()
                     }
                     // Fall through to fetch real URL since it's only partially downloaded
                 }
 
                 if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
-                    songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                    songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let {
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                        return@Factory dataSpec.withUri(it.first.toUri())
+                        currentStreamClient = it.clientName
+                        return@Factory dataSpec.buildUpon().setUri(it.url.toUri())
+                            .setHttpRequestHeaders(dataSpec.httpRequestHeaders + it.headers).build()
                     }
                     Timber.tag(TAG).w("Ghost cache entry for $mediaId, re-fetching")
                     playerCache.removeResource(mediaId)
                 }
 
-                songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let {
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                        return@Factory dataSpec.withUri(it.first.toUri())
+                        currentStreamClient = it.clientName
+                        return@Factory dataSpec.buildUpon().setUri(it.url.toUri())
+                            .setHttpRequestHeaders(dataSpec.httpRequestHeaders + it.headers).build()
                 }
             } else {
                 Timber.tag("MusicService").i("BYPASSING CACHE for $mediaId due to quality change")
@@ -3083,11 +3129,19 @@ class MusicService :
                 }
 
                 val streamUrl = nonNullPlayback.streamUrl
+                val streamHeaders = nonNullPlayback.streamHeaders
+                currentStreamClient = nonNullPlayback.streamClient
 
                 songUrlCache["${mediaId}_${lockedQuality.name}"] =
-                    streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
+                    CachedStreamUrl(
+                        streamUrl,
+                        System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L),
+                        streamHeaders,
+                        nonNullPlayback.streamClient,
+                    )
                 
-                return@Factory dataSpec.buildUpon().setKey(targetCacheKey).setUri(streamUrl.toUri()).build()
+                return@Factory dataSpec.buildUpon().setKey(targetCacheKey).setUri(streamUrl.toUri())
+                    .setHttpRequestHeaders(dataSpec.httpRequestHeaders + streamHeaders).build()
             }
         }
     }
@@ -4014,8 +4068,13 @@ class MusicService :
                             knownDurationMs = dbSong?.song?.duration?.let { if (it > 0) it * 1000L else null }
                         )
 
-                        playbackData.getOrNull()?.streamUrl?.let { streamUrl ->
-                            songUrlCache["${mediaId}_${audioQuality.name}"] = Pair(streamUrl, System.currentTimeMillis() + 1000 * 60 * 60)
+                        playbackData.getOrNull()?.let { preloaded ->
+                            songUrlCache["${mediaId}_${audioQuality.name}"] = CachedStreamUrl(
+                                preloaded.streamUrl,
+                                System.currentTimeMillis() + 1000 * 60 * 60,
+                                preloaded.streamHeaders,
+                                preloaded.streamClient,
+                            )
                             Timber.tag(TAG).d("Preloaded stream for $mediaId")
                         }
                     }

@@ -105,7 +105,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import com.audic.music.applecanvas.AppleMusicCanvasProvider
-import com.audic.music.audicmusiccanvas.audicmusicCanvasProvider
 import java.util.Locale
 
 
@@ -753,11 +752,7 @@ private fun ThumbnailItem(
                                     )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }?.let { return@firstNotNullOfOrNull it }
                                 }
 
-                                audicmusicCanvasProvider.getBySongArtist(
-                                    song = s,
-                                    artist = a
-                                )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                                    ?: TidalCanvasProvider.getBySongArtist(
+                                TidalCanvasProvider.getBySongArtist(
                                         song = s,
                                         artist = a,
                                         album = albumName

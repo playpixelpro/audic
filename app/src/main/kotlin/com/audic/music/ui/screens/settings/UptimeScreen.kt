@@ -58,7 +58,6 @@ highlightKey: String? = null) {
 
     val canvasServices = remember {
         mutableStateListOf(
-            ServiceStatus("Audic Canvas", { "https://canvas.echomusic.fun" }),
             ServiceStatus("Tidal Canvas", { "https://api.tidal.com/v1/" })
         )
     }

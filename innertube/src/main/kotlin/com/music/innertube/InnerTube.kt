@@ -47,6 +47,10 @@ class InnerTube {
     )
     var visitorData: String? = null
     var dataSyncId: String? = null
+    var authUser: String = "0"
+        set(value) {
+            field = value.filter(Char::isDigit).ifBlank { "0" }
+        }
     var cookie: String? = null
         set(value) {
             field = value
@@ -167,15 +171,17 @@ class InnerTube {
     private fun HttpRequestBuilder.ytClient(client: YouTubeClient, setLogin: Boolean = false) {
         contentType(ContentType.Application.Json)
         headers {
+            val origin = if (client.isEmbedded) "https://www.youtube.com" else YouTubeClient.ORIGIN_YOUTUBE_MUSIC
             append("X-Goog-Api-Format-Version", "1")
             append("X-YouTube-Client-Name", client.clientId /* Not a typo. The Client-Name header does contain the client id. */)
             append("X-YouTube-Client-Version", client.clientVersion)
-            append("X-Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
-            append("Referer", YouTubeClient.REFERER_YOUTUBE_MUSIC)
+            append("X-Origin", origin)
+            append("Referer", "$origin/")
             visitorData?.let { append("X-Goog-Visitor-Id", it) }
             if (setLogin && client.loginSupported) {
                 cookie?.let { cookie ->
                     append("cookie", cookie)
+                    append("X-Goog-AuthUser", authUser)
                     if ("SAPISID" !in cookieMap) return@let
                     val currentTime = System.currentTimeMillis() / 1000
                     val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
@@ -243,7 +249,7 @@ class InnerTube {
         signatureTimestamp: Int?,
         poToken: String? = null,
     ) = withRetry {
-        httpClient.post("player") {
+        httpClient.post(if (client.isEmbedded) "https://www.youtube.com/youtubei/v1/player" else "player") {
             ytClient(client, setLogin = true)
             setBody(
                 PlayerBody(

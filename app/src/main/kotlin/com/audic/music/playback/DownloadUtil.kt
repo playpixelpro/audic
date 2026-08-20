@@ -62,6 +62,15 @@ import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
 
+internal fun streamExpiryTimestamp(nowMs: Long, expiresInSeconds: Int): Long =
+    nowMs + expiresInSeconds * 1000L
+
+private data class CachedDownloadUrl(
+    val url: String,
+    val expiresAt: Long,
+    val headers: Map<String, String> = emptyMap(),
+)
+
 @Singleton
 class DownloadUtil
 @Inject
@@ -78,7 +87,7 @@ constructor(
     private val httpClient = OkHttpClient()
     private val downloadQuality by enumPreference(context, com.audic.music.constants.DownloadQualityKey, com.audic.music.constants.DownloadQuality.YOUTUBE)
     private val ipVersion by enumPreference(context, IpVersionKey, IpVersion.IPV4)
-    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val songUrlCache = HashMap<String, CachedDownloadUrl>()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -111,8 +120,9 @@ constructor(
         ) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
-            songUrlCache["${mediaId}_${downloadQuality.name}"]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                return@Factory dataSpec.withUri(it.first.toUri())
+            songUrlCache["${mediaId}_${downloadQuality.name}"]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let {
+                return@Factory dataSpec.buildUpon().setUri(it.url.toUri())
+                    .setHttpRequestHeaders(dataSpec.httpRequestHeaders + it.headers).build()
             }
 
             val playbackData = runBlocking(Dispatchers.IO) {
@@ -176,8 +186,13 @@ constructor(
 
             val streamUrl = playbackData.streamUrl
 
-            songUrlCache["${mediaId}_${downloadQuality.name}"] = streamUrl to playbackData.streamExpiresInSeconds * 1000L
-            dataSpec.withUri(streamUrl.toUri())
+            songUrlCache["${mediaId}_${downloadQuality.name}"] = CachedDownloadUrl(
+                streamUrl,
+                streamExpiryTimestamp(System.currentTimeMillis(), playbackData.streamExpiresInSeconds),
+                playbackData.streamHeaders,
+            )
+            dataSpec.buildUpon().setUri(streamUrl.toUri())
+                .setHttpRequestHeaders(dataSpec.httpRequestHeaders + playbackData.streamHeaders).build()
         }
 
     val downloadNotificationHelper =
