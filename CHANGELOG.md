@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.6
+
+- Fix playback failures on songs reported as "Video unavailable" (YouTube now withholds stream URLs from mobile clients): stream resolution now falls back to the VISIONOS client and the updated NewPipe extractor
+- Show the real failure reason when playback resolution fails, instead of a misleading "Video unavailable"
+- Rework player.js cipher handling (n-parameter deobfuscation, signature timestamp, player config persistence)
+- Fix download and audio-export edge cases
+- Various UI and canvas fixes
+
 ## 1.0.5
 
 - Cache artwork to local files for offline playback of downloaded songs
