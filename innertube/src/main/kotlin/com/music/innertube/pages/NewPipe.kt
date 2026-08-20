@@ -137,6 +137,22 @@ class NewPipeUtils(
             // Don't print stack trace - caller handles errors
             null
         }
+
+    /**
+     * Deobfuscate only the throttling `n` parameter on an already-resolved stream URL, using
+     * NewPipe's independent player.js JS manager. Used as a fallback when the in-app cipher / EJS
+     * n-solvers are unavailable (an untransformed `n` causes the googlevideo CDN to return 403).
+     */
+    fun deobfuscateThrottlingParam(url: String, videoId: String): String =
+        try {
+            YoutubeJavaScriptPlayerManager.getUrlWithThrottlingParameterDeobfuscated(
+                videoId,
+                url,
+            )
+        } catch (e: Exception) {
+            // Don't print stack trace - caller handles errors
+            url
+        }
 }
 
 object NewPipeExtractor {
@@ -167,6 +183,11 @@ object NewPipeExtractor {
     ): String? {
         init()
         return newPipeUtils?.getStreamUrl(format, videoId)
+    }
+
+    fun deobfuscateThrottlingParam(url: String, videoId: String): String {
+        init()
+        return newPipeUtils?.deobfuscateThrottlingParam(url, videoId) ?: url
     }
 
     fun newPipePlayer(videoId: String): List<Pair<Int, String>> {

@@ -241,7 +241,6 @@ import com.audic.music.extensions.metadata
 import com.audic.music.ui.player.CanvasArtworkPlaybackCache
 import com.audic.music.ui.player.normalizeCanvasArtistName
 import com.audic.music.ui.player.normalizeCanvasSongTitle
-import com.audic.music.audicmusiccanvas.audicmusicCanvasProvider
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
@@ -629,9 +628,7 @@ fun BottomSheetPlayer(
             val s = normalizeCanvasSongTitle(requestedTitle)
             val a = normalizeCanvasArtistName(requestedArtist)
             
-            val fetched = audicmusicCanvasProvider.getBySongArtist(s, a)
-                ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                ?: TidalCanvasProvider.getBySongArtist(s, a, requestedAlbum)
+            val fetched = TidalCanvasProvider.getBySongArtist(s, a, requestedAlbum)
                 ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
                 ?: AppleMusicCanvasProvider.getBySongArtist(s, a, requestedAlbum, storefront)
                 ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }

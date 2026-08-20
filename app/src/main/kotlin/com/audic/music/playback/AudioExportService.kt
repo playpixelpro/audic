@@ -155,9 +155,12 @@ class AudioExportService : Service() {
         destFile: File,
     ) {
         val totalLength = playbackData.format.contentLength ?: 10_000_000L
-        val request = Request.Builder().url(playbackData.streamUrl)
+        val requestBuilder = Request.Builder().url(playbackData.streamUrl)
             .header("Range", "bytes=0-$totalLength")
-            .build()
+        playbackData.streamHeaders.forEach { (name, value) ->
+            requestBuilder.header(name, value)
+        }
+        val request = requestBuilder.build()
         var totalBytes = -1L
         var bytesWritten = 0L
 

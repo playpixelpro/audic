@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.audic.music.applecanvas.AppleMusicCanvasProvider
-import com.audic.music.audicmusiccanvas.audicmusicCanvasProvider
 import com.audic.music.canvas.CanvasArtwork
 import com.audic.music.canvas.TidalCanvasProvider
 import com.audic.music.ui.player.CanvasArtworkPlaybackCache
@@ -63,11 +62,7 @@ fun rememberAlbumCanvas(
 
             searchTasks.filter { (s, a) -> s.isNotBlank() && a.isNotBlank() }
                 .firstNotNullOfOrNull { (s, a) ->
-                    audicmusicCanvasProvider.getBySongArtist(
-                        song = s,
-                        artist = a
-                    )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                    ?: AppleMusicCanvasProvider.getByAlbumArtist(
+                    AppleMusicCanvasProvider.getByAlbumArtist(
                         album = s,
                         artist = a,
                         storefront = storefront
