@@ -9,7 +9,9 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import androidx.documentfile.provider.DocumentFile
@@ -101,7 +103,7 @@ class AudioExportService : Service() {
 
         val tempSourceFile = File.createTempFile("export_source_", ".m4a", cacheDir)
         val tempArtworkFile = File.createTempFile("export_cover_", ".jpg", cacheDir)
-        val tempMp3File = File.createTempFile("export_result_", ".mp3", cacheDir)
+        val tempOutputFile = File.createTempFile("export_result_", ".m4a", cacheDir)
 
         try {
             val connectivityManager = getSystemService<ConnectivityManager>()
@@ -115,16 +117,16 @@ class AudioExportService : Service() {
             val year = fetchSongYear(songId)
             downloadStream(playbackData, tempSourceFile)
             val artworkDownloaded = downloadArtwork(artworkUrl, tempArtworkFile)
-            convertToMp3(
+            transcodeAndTag(
                 sourceFile = tempSourceFile,
-                outputFile = tempMp3File,
+                outputFile = tempOutputFile,
                 songTitle = songTitle,
                 songArtist = songArtist,
                 songAlbum = songAlbum,
                 year = year,
                 artworkFile = if (artworkDownloaded) tempArtworkFile else null,
             )
-            writeOutputFile(safeTitle, targetDirectoryUri, tempMp3File)
+            writeOutputFile(safeTitle, targetDirectoryUri, tempOutputFile)
             addExportedSongId(songId)
         } catch (e: Exception) {
             Timber.e(e, "Export failed for songId=$songId")
@@ -138,7 +140,7 @@ class AudioExportService : Service() {
         } finally {
             tempSourceFile.delete()
             tempArtworkFile.delete()
-            tempMp3File.delete()
+            tempOutputFile.delete()
             removeExportingSongId(songId)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -200,7 +202,7 @@ class AudioExportService : Service() {
         }.isSuccess && destFile.length() > 0L
     }
 
-    private suspend fun convertToMp3(
+    private suspend fun transcodeAndTag(
         sourceFile: File,
         outputFile: File,
         songTitle: String,
@@ -212,42 +214,58 @@ class AudioExportService : Service() {
         transcodeWithMedia3(sourceFile, outputFile)
 
         val coverBytes = artworkFile?.takeIf { it.exists() && it.length() > 0L }?.readBytes()
-        Id3Writer.writeTags(
-            mp3File = outputFile,
-            title = songTitle,
-            artist = songArtist,
-            album = songAlbum,
-            year = year,
-            coverArt = coverBytes,
-        )
+        // Tagging is best-effort: a rejected file is left valid but untagged rather than
+        // failing an export whose audio is already good.
+        val tagged = runCatching {
+            Mp4TagWriter.writeTags(
+                file = outputFile,
+                title = songTitle,
+                artist = songArtist,
+                album = songAlbum,
+                year = year,
+                coverArt = coverBytes,
+            )
+        }.getOrDefault(false)
+        if (!tagged) Timber.w("Could not write M4A tags for '$songTitle'; exporting untagged")
     }
 
     private suspend fun transcodeWithMedia3(sourceFile: File, outputFile: File) {
         if (outputFile.exists()) outputFile.delete()
 
-        suspendCancellableCoroutine { continuation ->
-            val transformer = Transformer.Builder(this@AudioExportService)
-                .setAudioMimeType(MimeTypes.AUDIO_MPEG)
-                .addListener(object : Transformer.Listener {
-                    override fun onCompleted(composition: androidx.media3.transformer.Composition, exportResult: androidx.media3.transformer.ExportResult) {
-                        if (!outputFile.exists() || outputFile.length() <= 0L) {
-                            continuation.resumeWithException(RuntimeException("Transcoder produced empty file"))
-                        } else {
-                            continuation.resume(Unit)
+        // Transformer binds to the Looper of the thread that builds it and rejects every
+        // later call from any other thread. The export runs on Dispatchers.IO, which has no
+        // Looper, so the builder silently falls back to the main one and start() then throws
+        // "Transformer is accessed on the wrong thread". Build, start and cancel on main.
+        // Suspending here does not block it — Transformer does its work on its own threads.
+        withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { continuation ->
+                // ponytail: AAC, not MP3 — Android ships no MP3 encoder and MediaMuxer only
+                // accepts AAC/AMR, so AUDIO_MPEG failed every export with "unsupported MIME
+                // type". Real .mp3 would mean vendoring LAME via the NDK; see Mp4TagWriter.
+                // AAC sources transmux losslessly here, Opus sources re-encode once.
+                val transformer = Transformer.Builder(this@AudioExportService)
+                    .setAudioMimeType(MimeTypes.AUDIO_AAC)
+                    .addListener(object : Transformer.Listener {
+                        override fun onCompleted(composition: androidx.media3.transformer.Composition, exportResult: androidx.media3.transformer.ExportResult) {
+                            if (!outputFile.exists() || outputFile.length() <= 0L) {
+                                continuation.resumeWithException(RuntimeException("Transcoder produced empty file"))
+                            } else {
+                                continuation.resume(Unit)
+                            }
                         }
-                    }
 
-                    override fun onError(composition: androidx.media3.transformer.Composition, exportResult: androidx.media3.transformer.ExportResult, exception: androidx.media3.transformer.ExportException) {
-                        continuation.resumeWithException(exception)
-                    }
-                })
-                .build()
+                        override fun onError(composition: androidx.media3.transformer.Composition, exportResult: androidx.media3.transformer.ExportResult, exception: androidx.media3.transformer.ExportException) {
+                            continuation.resumeWithException(exception)
+                        }
+                    })
+                    .build()
 
-            val mediaItem = MediaItem.fromUri(sourceFile.toURI().toString())
-            transformer.start(mediaItem, outputFile.absolutePath)
+                transformer.start(MediaItem.fromUri(Uri.fromFile(sourceFile)), outputFile.absolutePath)
 
-            continuation.invokeOnCancellation {
-                transformer.cancel()
+                continuation.invokeOnCancellation {
+                    // Runs on whichever thread cancelled, so bounce cancel() back to main.
+                    Handler(Looper.getMainLooper()).post { transformer.cancel() }
+                }
             }
         }
     }
@@ -261,11 +279,11 @@ class AudioExportService : Service() {
         if (uri.scheme == "file") {
             val folder = File(uri.path ?: error("Invalid export directory"))
             if (!folder.exists() && !folder.mkdirs()) error("Unable to create export directory")
-            sourceFile.copyTo(File(folder, "$safeTitle.mp3"), overwrite = true)
+            sourceFile.copyTo(File(folder, "$safeTitle.m4a"), overwrite = true)
         } else {
             val destinationDir = DocumentFile.fromTreeUri(this, uri)
                 ?: error("Export directory unavailable")
-            val outputFile = destinationDir.createFile("audio/mpeg", "$safeTitle.mp3")
+            val outputFile = destinationDir.createFile("audio/mp4", "$safeTitle.m4a")
                 ?: error("Unable to create output file")
             sourceFile.inputStream().use { input ->
                 contentResolver.openOutputStream(outputFile.uri, "w")!!.use { input.copyTo(it) }

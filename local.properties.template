@@ -14,3 +14,7 @@ GOOGLE_API_KEY=your_google_api_key_here
 # Last.fm API credentials — get yours at https://www.last.fm/api/account/create
 LASTFM_API_KEY=your_lastfm_api_key_here
 LASTFM_SECRET=your_lastfm_secret_here
+
+# Libre.fm API credentials — get yours at https://libre.fm/api/account/create
+LIBREFM_API_KEY=your_librefm_api_key_here
+LIBREFM_SECRET=your_librefm_secret_here

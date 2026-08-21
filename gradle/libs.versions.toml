@@ -5,6 +5,9 @@ androidGradlePlugin = "9.3.1"
 json = "20251224"
 kotlin = "2.3.10"
 compose = "1.10.2"
+# Frozen: 1.7.8 is the last release Google ever published for material-icons-*.
+# Deliberately NOT version.ref = "compose" — newer Compose versions do not exist here.
+composeMaterialIcons = "1.7.8"
 graphicsPath = "1.1.0"
 lifecycle = "2.10.0"
 material3 = "1.5.0-alpha18"
@@ -80,8 +83,7 @@ material3 = { module = "androidx.compose.material3:material3", version.ref = "ma
 androidx-adaptive = { module = "androidx.compose.material3.adaptive:adaptive", version.ref = "adaptive" }
 androidx-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout", version.ref = "adaptive" }
 androidx-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation", version.ref = "adaptive" }
-compose-material-icons-core = { module = "androidx.compose.material:material-icons-core", version.ref = "compose" }
-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "compose" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "composeMaterialIcons" }
 
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 

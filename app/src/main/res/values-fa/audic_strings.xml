@@ -300,6 +300,12 @@
     <string name="last_fm_send_likes_description">ثبت آهنگ‌ها به عنوان محبوب/نامحبوب در Last.fm متناسب با لایک‌های داخل برنامه</string>
     <string name="logging_in">در حال ورود…</string>
 
+    <!-- Libre.fm -->
+    <string name="librefm_integration">اتصال به Libre.fm</string>
+    <string name="librefm_now_playing">ارسال وضعیت «در حال پخش»</string>
+    <string name="librefm_send_likes">ارسال لایک‌ها/دیس‌لایک‌ها</string>
+    <string name="librefm_send_likes_description">ثبت آهنگ‌ها به عنوان محبوب/نامحبوب در Libre.fm متناسب با لایک‌های داخل برنامه</string>
+
     <string name="scrobbling_configuration">تنظیمات اسکرابل</string>
     <string name="scrobble_min_track_duration">اسکرابل آهنگ‌های طولانی‌تر از</string>
     <string name="scrobble_delay_percent">درصد تاخیر اسکرابل</string>
@@ -315,7 +321,7 @@
     <string name="add_to_library_desc">ذخیره در کتابخانه شما</string>
     <string name="download_desc">آماده‌سازی برای پخش آفلاین</string>
     <string name="action_export">خروجی گرفتن (اکسپورت)</string>
-    <string name="export_desc">خروجی گرفتن به صورت MP3</string>
+    <string name="export_desc">خروجی گرفتن به صورت M4A</string>
     <string name="export_directory_not_set">ابتدا یک پوشه خروجی در تنظیمات ذخیره‌سازی تعیین کنید</string>
     <string name="export_directory">پوشه خروجی</string>
     <string name="exporting">در حال خروجی گرفتن</string>
