@@ -265,7 +265,7 @@ fun AccountSettingsScreen(
                     ),
                     Material3SettingsItem(
                         isHighlighted = (highlightKey == stringResource(R.string.librefm_integration)),
-                        icon = painterResource(R.drawable.ic_lastfm),
+                        icon = painterResource(R.drawable.queue_music),
                         title = { Text(stringResource(R.string.librefm_integration)) },
                         onClick = { navController.navigate("settings/librefm") }
                     ),

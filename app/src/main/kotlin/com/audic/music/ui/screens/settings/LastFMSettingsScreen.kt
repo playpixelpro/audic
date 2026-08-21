@@ -3,7 +3,7 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-package com.music.audic.ui.screens.settings
+package com.audic.music.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -306,6 +306,7 @@ fun LastFMSettingsScreen(
                             OutlinedButton(onClick = {
                                 lastfmSession = ""
                                 lastfmUsername = ""
+                                LastFM.sessionKey = null
                             }) {
                                 Text(stringResource(R.string.action_logout))
                             }

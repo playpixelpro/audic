@@ -64,6 +64,8 @@ import com.audic.music.audicmusic.changelog.ChangelogScreen
 import com.audic.music.audicmusic.commitscreen.CommitScreen
 import com.audic.music.ui.screens.equalizer.axion.AxionEqScreen
 import com.audic.music.ui.screens.ambient.AmbientModeScreen
+import com.audic.music.ui.screens.settings.LastFMSettingsScreen
+import com.audic.music.ui.screens.settings.LibreFMSettingsScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
@@ -440,11 +442,11 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings/lastfm") {
-        com.music.audic.ui.screens.settings.LastFMSettingsScreen(navController)
+        LastFMSettingsScreen(navController)
     }
 
     composable("settings/librefm") {
-        com.music.audic.ui.screens.settings.LibreFMSettingsScreen(navController)
+        LibreFMSettingsScreen(navController)
     }
 
     composable("settings/discord/experimental") {

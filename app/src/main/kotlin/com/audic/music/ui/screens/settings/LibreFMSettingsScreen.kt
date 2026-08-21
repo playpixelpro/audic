@@ -3,7 +3,7 @@
  * Licensed under GPL-3.0
  */
 
-package com.music.audic.ui.screens.settings
+package com.audic.music.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -279,7 +279,7 @@ fun LibreFMSettingsScreen(
                             }
                         }
                     },
-                    icon = painterResource(R.drawable.ic_listenbrainz)
+                    icon = painterResource(R.drawable.queue_music)
                 ),
             )
         )
