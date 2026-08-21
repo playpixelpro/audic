@@ -51,8 +51,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
-import com.music.audic.utils.lastfm.LastFM
-import com.music.audic.utils.lastfm.LastFmException
+import com.audic.music.utils.lastfm.LastFM
+import com.audic.music.utils.lastfm.LastFmException
 import com.audic.music.LocalPlayerAwareWindowInsets
 import com.audic.music.R
 import com.audic.music.constants.EnableLastFMScrobblingKey

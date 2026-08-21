@@ -1,4 +1,4 @@
-package com.music.audic.models.lastfm
+package com.audic.music.models.lastfm
 
 import kotlinx.serialization.Serializable
 

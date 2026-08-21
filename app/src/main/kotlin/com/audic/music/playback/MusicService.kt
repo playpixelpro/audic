@@ -175,8 +175,8 @@ import com.audic.music.utils.CoilBitmapLoader
 import com.audic.music.ui.screens.settings.DiscordPresenceManager
 import com.audic.music.utils.NetworkConnectivityObserver
 import com.audic.music.utils.ScrobbleManager
-import com.music.audic.utils.lastfm.LastFM
-import com.music.audic.utils.lastfm.LibreFM
+import com.audic.music.utils.lastfm.LastFM
+import com.audic.music.utils.lastfm.LibreFM
 import com.audic.music.utils.SyncUtils
 import com.audic.music.utils.YTPlayerUtils
 import com.audic.music.utils.dataStore
@@ -588,7 +588,7 @@ class MusicService :
         }
         scope.launch {
             dataStore.data.map { it[LastFMSessionKey] }.distinctUntilChanged().collect { sessionKey ->
-                com.music.audic.utils.lastfm.LastFM.sessionKey = sessionKey
+                com.audic.music.utils.lastfm.LastFM.sessionKey = sessionKey
             }
         }
         scope.launch {
@@ -603,7 +603,7 @@ class MusicService :
         }
         scope.launch {
             dataStore.data.map { it[LibreFMSessionKey] }.distinctUntilChanged().collect { sessionKey ->
-                com.music.audic.utils.lastfm.LibreFM.sessionKey = sessionKey
+                com.audic.music.utils.lastfm.LibreFM.sessionKey = sessionKey
             }
         }
         scope.launch {

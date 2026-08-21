@@ -59,8 +59,8 @@ import com.audic.music.ui.component.Material3SettingsGroup
 import com.audic.music.ui.component.Material3SettingsItem
 import com.audic.music.ui.utils.backToMain
 import com.audic.music.utils.rememberPreference
-import com.music.audic.utils.lastfm.LastFmException
-import com.music.audic.utils.lastfm.LibreFM
+import com.audic.music.utils.lastfm.LastFmException
+import com.audic.music.utils.lastfm.LibreFM
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 

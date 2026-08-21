@@ -1,4 +1,4 @@
-package com.music.audic.utils.lastfm
+package com.audic.music.utils.lastfm
 
 /**
  * Last.fm. All protocol behaviour lives in [ScrobblerClient]; this only supplies the

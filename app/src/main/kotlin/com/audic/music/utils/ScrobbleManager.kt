@@ -1,9 +1,9 @@
 package com.audic.music.utils
 
 import com.audic.music.models.MediaMetadata
-import com.music.audic.utils.lastfm.LibreFM
-import com.music.audic.utils.lastfm.LastFM
-import com.music.audic.utils.lastfm.ScrobblerClient
+import com.audic.music.utils.lastfm.LibreFM
+import com.audic.music.utils.lastfm.LastFM
+import com.audic.music.utils.lastfm.ScrobblerClient
 import com.audic.music.utils.isLocalMediaId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

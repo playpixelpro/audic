@@ -1,4 +1,4 @@
-package com.music.audic.utils.lastfm
+package com.audic.music.utils.lastfm
 
 /**
  * Libre.fm — the GNU FM instance at libre.fm. It implements the same AudioScrobbler 2.0
