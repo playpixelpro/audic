@@ -49,8 +49,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build APKs
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --stacktrace
         env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096M -XX:MaxMetaspaceSize=1024M" -Dorg.gradle.daemon=false
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
