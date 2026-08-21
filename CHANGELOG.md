@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.7
+
+- Libre.fm integration: log in with your Libre.fm account and independently toggle scrobbling, now-playing updates, and like sync (Settings → Account → Integrations); scrobbling targets Last.fm and Libre.fm together
+- Fix audio export "unsupported MIME type" error: export now writes AAC/M4A with embedded metadata and cover art (Android has no MP3 encoder)
+- Fix export failing with "Transformer accessed on the wrong thread"
+- Remove the dead audicmusiccanvas module and pin material-icons-extended to 1.7.8 (fixes dependency resolution)
+- Update Gradle wrapper
+
 ## 1.0.6
 
 - Fix playback failures on songs reported as "Video unavailable" (YouTube now withholds stream URLs from mobile clients): stream resolution now falls back to the VISIONOS client and the updated NewPipe extractor
