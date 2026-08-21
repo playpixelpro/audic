@@ -1056,7 +1056,7 @@ highlightKey: String? = null) {
     isHighlighted = (highlightKey == stringResource(R.string.export_desc)),
                     icon = painterResource(R.drawable.file_export),
                     title = { Text(stringResource(R.string.export_desc)) },
-                    description = { Text("Show 'Export as MP3' in menus") },
+                    description = { Text("Show 'Export as M4A' in menus") },
                     trailingContent = {
                         Switch(
                             checked = enableExportAsMp3,

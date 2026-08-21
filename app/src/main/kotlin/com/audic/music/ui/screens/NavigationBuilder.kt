@@ -443,6 +443,10 @@ fun NavGraphBuilder.navigationBuilder(
         com.music.audic.ui.screens.settings.LastFMSettingsScreen(navController)
     }
 
+    composable("settings/librefm") {
+        com.music.audic.ui.screens.settings.LibreFMSettingsScreen(navController)
+    }
+
     composable("settings/discord/experimental") {
         com.music.audic.ui.screens.settings.DiscordExperimental(navController)
     }

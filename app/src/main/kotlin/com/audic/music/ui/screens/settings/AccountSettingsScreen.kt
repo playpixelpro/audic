@@ -264,6 +264,12 @@ fun AccountSettingsScreen(
                         onClick = { navController.navigate("settings/lastfm") }
                     ),
                     Material3SettingsItem(
+                        isHighlighted = (highlightKey == stringResource(R.string.librefm_integration)),
+                        icon = painterResource(R.drawable.ic_lastfm),
+                        title = { Text(stringResource(R.string.librefm_integration)) },
+                        onClick = { navController.navigate("settings/librefm") }
+                    ),
+                    Material3SettingsItem(
                         isHighlighted = (highlightKey == stringResource(R.string.listenbrainz_scrobbling)),
                         icon = painterResource(R.drawable.ic_listenbrainz),
                         title = { Text(stringResource(R.string.listenbrainz_scrobbling)) },

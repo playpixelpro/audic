@@ -142,6 +142,8 @@ val MaxSongCacheSizeKey = intPreferencesKey("maxSongCacheSize")
 val ExportDirectoryUriKey = stringPreferencesKey("exportDirectoryUri")
 val ExportingSongIdsKey = stringPreferencesKey("exportingSongIds")
 val ExportedSongIdsKey = stringPreferencesKey("exportedSongIds")
+// ponytail: export produces M4A now, but the stored key stays "enableExportAsMp3" —
+// renaming it would silently reset the toggle for every existing user.
 val EnableExportAsMp3Key = booleanPreferencesKey("enableExportAsMp3")
 
 val PauseListenHistoryKey = booleanPreferencesKey("pauseListenHistory")
@@ -175,6 +177,12 @@ val EnableLastFMScrobblingKey = booleanPreferencesKey("lastfmScrobblingEnable")
 val LastFMUseNowPlaying = booleanPreferencesKey("lastfmUseNowPlaying")
 
 val LastFMUseSendLikes = booleanPreferencesKey("lastfmUseSendLikes")
+
+val LibreFMSessionKey = stringPreferencesKey("librefmSession")
+val LibreFMUsernameKey = stringPreferencesKey("librefmUsername")
+val EnableLibreFMScrobblingKey = booleanPreferencesKey("librefmScrobblingEnable")
+val LibreFMUseNowPlaying = booleanPreferencesKey("librefmUseNowPlaying")
+val LibreFMUseSendLikes = booleanPreferencesKey("librefmUseSendLikes")
 
 val ScrobbleDelayPercentKey = floatPreferencesKey("scrobbleDelayPercent")
 val ScrobbleMinSongDurationKey = intPreferencesKey("scrobbleMinSongDuration")

@@ -93,12 +93,16 @@ import com.audic.music.constants.DiscordActivityTypeKey
 import com.audic.music.constants.DiscordTokenKey
 import com.audic.music.constants.EnableDiscordRPCKey
 import com.audic.music.constants.EnableLastFMScrobblingKey
+import com.audic.music.constants.EnableLibreFMScrobblingKey
 import com.audic.music.constants.HideExplicitKey
 import com.audic.music.constants.HideVideoSongsKey
 import com.audic.music.constants.HistoryDuration
 import com.audic.music.constants.LastFMSessionKey
 import com.audic.music.constants.LastFMUseNowPlaying
 import com.audic.music.constants.LastFMUseSendLikes
+import com.audic.music.constants.LibreFMSessionKey
+import com.audic.music.constants.LibreFMUseNowPlaying
+import com.audic.music.constants.LibreFMUseSendLikes
 import com.audic.music.constants.MediaSessionConstants.CommandToggleLike
 import com.audic.music.constants.MediaSessionConstants.CommandToggleRepeatMode
 import com.audic.music.constants.MediaSessionConstants.CommandToggleShuffle
@@ -172,6 +176,7 @@ import com.audic.music.ui.screens.settings.DiscordPresenceManager
 import com.audic.music.utils.NetworkConnectivityObserver
 import com.audic.music.utils.ScrobbleManager
 import com.music.audic.utils.lastfm.LastFM
+import com.music.audic.utils.lastfm.LibreFM
 import com.audic.music.utils.SyncUtils
 import com.audic.music.utils.YTPlayerUtils
 import com.audic.music.utils.dataStore
@@ -584,6 +589,21 @@ class MusicService :
         scope.launch {
             dataStore.data.map { it[LastFMSessionKey] }.distinctUntilChanged().collect { sessionKey ->
                 com.music.audic.utils.lastfm.LastFM.sessionKey = sessionKey
+            }
+        }
+        scope.launch {
+            dataStore.data.map { it[EnableLibreFMScrobblingKey] ?: false }.distinctUntilChanged().collect {
+                scrobbleManager?.enableLibreFmScrobbling = it
+            }
+        }
+        scope.launch {
+            dataStore.data.map { it[LibreFMUseNowPlaying] ?: false }.distinctUntilChanged().collect {
+                scrobbleManager?.libreFmUseNowPlaying = it
+            }
+        }
+        scope.launch {
+            dataStore.data.map { it[LibreFMSessionKey] }.distinctUntilChanged().collect { sessionKey ->
+                com.music.audic.utils.lastfm.LibreFM.sessionKey = sessionKey
             }
         }
         scope.launch {
@@ -1875,6 +1895,12 @@ class MusicService :
                     val artists = it.artists.joinToString(", ") { a -> a.name }
                     if (artists.isNotBlank()) {
                         LastFM.setLoveStatus(artists, song.title, song.liked)
+                    }
+                }
+                if (dataStore.get(LibreFMUseSendLikes, false) && LibreFM.isInitialized()) {
+                    val artists = it.artists.joinToString(", ") { a -> a.name }
+                    if (artists.isNotBlank()) {
+                        LibreFM.setLoveStatus(artists, song.title, song.liked)
                     }
                 }
 

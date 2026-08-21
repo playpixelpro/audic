@@ -25,7 +25,7 @@ if (hasGoogleServicesConfig) {
 
 android {
     namespace = "com.audic.music"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "27.0.12077973"
 
 
@@ -33,7 +33,7 @@ android {
         applicationId = "com.audic.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
+        versionCode = 8
         versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -48,6 +48,12 @@ android {
         val lastfmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastfmApiKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastfmSecret\"")
+
+        // Libre.fm API credentials — never hardcoded, read from local.properties or env
+        val librefmApiKey = localProperties.getProperty("LIBREFM_API_KEY") ?: System.getenv("LIBREFM_API_KEY") ?: ""
+        val librefmSecret = localProperties.getProperty("LIBREFM_SECRET") ?: System.getenv("LIBREFM_SECRET") ?: ""
+        buildConfigField("String", "LIBREFM_API_KEY", "\"$librefmApiKey\"")
+        buildConfigField("String", "LIBREFM_SECRET", "\"$librefmSecret\"")
 
         buildConfigField("String", "FLOW_NEURO_BASE_URL", project.findProperty("FLOW_NEURO_BASE_URL")?.toString()?.let { "\"$it\"" } ?: "\"https://api.flowneuroengine.com\"")
         buildConfigField("String", "FLOW_NEURO_API_KEY", project.findProperty("FLOW_NEURO_API_KEY")?.toString()?.let { "\"$it\"" } ?: "\"\"")
@@ -338,7 +344,6 @@ dependencies {
     implementation(project(":shazamkit"))
     implementation(project(":artistvideo"))
     implementation(project(":applecanvas"))
-    implementation(project(":audicmusiccanvas"))
     implementation(project(":paxsenixlyrics"))
     implementation(project(":unison"))
 
@@ -358,7 +363,7 @@ dependencies {
     implementation(libs.timber)
     implementation(libs.smoothCorner)
     implementation(libs.lottie.compose)
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.work.runtime.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.media3.transformer)

@@ -311,6 +311,12 @@
     <string name="last_fm_send_likes_description">Love/Unlove songs in Last.fm when they are Liked/Unliked in audicmusic</string>
     <string name="logging_in">Logging in…</string>
 
+    <!-- Libre.fm -->
+    <string name="librefm_integration">Libre.fm Integration</string>
+    <string name="librefm_now_playing">Send Now Playing</string>
+    <string name="librefm_send_likes">Send Likes/Unlikes</string>
+    <string name="librefm_send_likes_description">Love/Unlove songs in Libre.fm when they are Liked/Unliked in audicmusic</string>
+
     <string name="scrobbling_configuration">Scrobbling Configuration</string>
     <string name="scrobble_min_track_duration">Scrobble songs longer than</string>
     <string name="scrobble_delay_percent">Scrobble delay percent</string>
@@ -326,7 +332,7 @@
     <string name="add_to_library_desc">Save to your library</string>
     <string name="download_desc">Make available for offline playback</string>
     <string name="action_export">Export</string>
-    <string name="export_desc">Export as MP3</string>
+    <string name="export_desc">Export as M4A</string>
     <string name="export_directory_not_set">Set an export folder in Storage settings first</string>
     <string name="export_directory">Export folder</string>
     <string name="exporting">Exporting</string>
