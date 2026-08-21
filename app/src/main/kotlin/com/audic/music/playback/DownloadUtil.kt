@@ -263,7 +263,7 @@ constructor(
                 val request = Request.Builder().url(thumbnailUrl).build()
                 val response = httpClient.newCall(request).execute()
                 if (response.isSuccessful) {
-                    response.body?.byteStream()?.use { input ->
+                    response.body.byteStream().use { input ->
                         FileOutputStream(localFile).use { output ->
                             input.copyTo(output)
                         }

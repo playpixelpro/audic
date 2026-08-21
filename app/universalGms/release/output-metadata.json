@@ -11,9 +11,9 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 9,
-      "versionName": "1.0.7",
-      "outputFile": "app-universal-gms-release.apk"
+      "versionCode": 10,
+      "versionName": "1.0.8",
+      "outputFile": "Audic-1.0.8-universalGms-release.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +22,14 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/app-universal-gms-release.dm"
+        "baselineProfiles/1/Audic-1.0.8-universalGms-release.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/app-universal-gms-release.dm"
+        "baselineProfiles/0/Audic-1.0.8-universalGms-release.dm"
       ]
     }
   ],

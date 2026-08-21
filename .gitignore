@@ -43,9 +43,11 @@ secrets.properties
 
 # Misc
 *.log
+*.err
 *.hprof
 captures/
 .claude
 CLAUDE.md
 .kilo/
 reference/
+audic_key
