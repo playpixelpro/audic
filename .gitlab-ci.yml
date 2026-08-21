@@ -33,8 +33,10 @@ build_job:
     # Decode Keystore
     - mkdir -p app/keystore
     - echo "$KEYSTORE_BASE64" | base64 -d > app/keystore/release.keystore
+  variables:
+    GRADLE_OPTS: "-Dorg.gradle.jvmargs=\"-Xmx4096M -XX:MaxMetaspaceSize=1024M\" -Dorg.gradle.daemon=false"
   script:
-    - ./gradlew assembleRelease
+    - ./gradlew :app:assembleUniversalFossRelease :app:assembleUniversalGmsRelease --stacktrace
   artifacts:
     paths:
       - app/build/outputs/apk/**/*.apk
