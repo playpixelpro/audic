@@ -1,0 +1,66 @@
+stages:
+  - build
+  - release
+
+variables:
+  ANDROID_SDK_TOOLS: "11076708"
+  # Use a standard JDK 21 image
+  JAVA_IMAGE: "openjdk:21-slim"
+
+# Cache gradle dependencies
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+build_job:
+  stage: build
+  image: $JAVA_IMAGE
+  before_script:
+    - apt-get update && apt-get install -y wget unzip
+    - mkdir -p /sdk && cd /sdk
+    - wget https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS}_latest.zip
+    - unzip commandlinetools-linux-${ANDROID_SDK_TOOLS}_latest.zip
+    - mkdir -p cmdline-tools/latest
+    - mv cmdline-tools/* cmdline-tools/latest/ || true # Fix for nested folder
+    - export ANDROID_HOME=/sdk
+    - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+    - yes | sdkmanager --licenses > /dev/null
+    - sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+    - cd $CI_PROJECT_DIR
+    - chmod +x gradlew
+    # Decode Keystore
+    - mkdir -p app/keystore
+    - echo "$KEYSTORE_BASE64" | base64 -d > app/keystore/release.keystore
+  script:
+    - ./gradlew assembleRelease
+  artifacts:
+    paths:
+      - app/build/outputs/apk/**/*.apk
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - job: build_job
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  script:
+    - echo "Creating release for $CI_COMMIT_TAG"
+    # Extract Release Notes (similar logic to GitHub)
+    - VERSION=$(echo $CI_COMMIT_TAG | sed 's/^v//')
+    - awk "/^## $VERSION/{flag=1;next}/^## /{flag=0}flag" CHANGELOG.md > release_notes.md
+    - if [ ! -s release_notes.md ]; then echo "New release $CI_COMMIT_TAG" > release_notes.md; fi
+  release:
+    name: 'Release $CI_COMMIT_TAG'
+    description: '$(cat release_notes.md)'
+    tag_name: '$CI_COMMIT_TAG'
+    assets:
+      links:
+        - name: 'APKs'
+          url: '${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/browse/app/build/outputs/apk/'
