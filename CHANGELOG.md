@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.9
+
+- Fix share dialog not opening on Android 14+: `startActivity` now called on main thread with `FLAG_ACTIVITY_NEW_TASK`
+- Fix short.io "Access denied": updated API key and switched to thread-safe cache
+- Fix lyrics alignment: removed double-counted `lyricsOffset` in MetroLyrics rendering
+- Remove redundant non-null assertions and unnecessary Elvis operators
+- Fix typos and remove unused imports/properties across the codebase
+
 ## 1.0.7
 
 - Libre.fm integration: log in with your Libre.fm account and independently toggle scrobbling, now-playing updates, and like sync (Settings → Account → Integrations); scrobbling targets Last.fm and Libre.fm together

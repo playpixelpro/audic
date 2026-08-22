@@ -6,13 +6,14 @@ import com.github.shortiosdk.ShortioSdk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 
 object ShortLinkManager {
     private const val DOMAIN = "share.playpixelpro.com"
-    private const val API_KEY = "sk_FMoamrV6cDmUgO5R"
+    private const val API_KEY = "sk_ua8d8fqXZTWqinWx"
     private const val TAG = "ShortLinkManager"
 
-    private val cache = mutableMapOf<String, String>()
+    private val cache = ConcurrentHashMap<String, String>()
 
     suspend fun shorten(originalUrl: String): String {
         cache[originalUrl]?.let { return it }
@@ -31,7 +32,8 @@ object ShortLinkManager {
                         shortUrl
                     }
                     is ShortIOResult.Error -> {
-                        Timber.tag(TAG).w("Short.io error: %s", result.data.message)
+                        Timber.tag(TAG).w("Short.io error: %s (domain=%s, keyPrefix=%s)", 
+                            result.data.message, DOMAIN, API_KEY.take(8))
                         originalUrl
                     }
                 }
