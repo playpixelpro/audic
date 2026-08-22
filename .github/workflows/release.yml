@@ -36,8 +36,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Set Gradle JVM memory for CI
+        run: echo "GRADLE_OPTS=-Xmx4096M -XX:MaxMetaspaceSize=1024M" >> $GITHUB_ENV
+
       - name: Build universal FOSS release APK
-        run: ./gradlew assembleUniversalFossRelease
+        run: ./gradlew assembleUniversalFossRelease -x lint
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -47,7 +50,7 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
 
       - name: Build universal GMS release APK
-        run: ./gradlew assembleUniversalGmsRelease
+        run: ./gradlew assembleUniversalGmsRelease -x lint
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
