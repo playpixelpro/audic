@@ -30,6 +30,7 @@ import com.audic.music.extensions.toEnum
 import com.audic.music.extensions.toInetSocketAddress
 import com.audic.music.utils.CrashHandler
 import com.audic.music.utils.cipher.CipherDeobfuscator
+import com.audic.music.utils.YTPlayerUtils
 import com.audic.music.utils.dataStore
 import com.audic.music.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
@@ -93,10 +94,14 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch {
             initializeSettings()
             
-            // Warm the cipher WebView off the first-play critical path
+            // Warm the cipher WebView and PoToken generator off the first-play critical path
             launch(Dispatchers.IO) {
                 delay(1500)
                 CipherDeobfuscator.prewarm()
+            }
+            launch(Dispatchers.IO) {
+                delay(3000)
+                YTPlayerUtils.prewarmPoToken()
             }
             
             observeSettingsChanges()

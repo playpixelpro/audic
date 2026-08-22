@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.media3.common.PlaybackException
 import com.music.innertube.NewPipeExtractor
 import com.music.innertube.YouTube
+import com.music.innertube.models.ContentHints
 import com.music.innertube.models.YouTubeClient
 import com.music.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
 import com.audic.music.utils.BotDetectionMitigator
@@ -29,7 +30,6 @@ import com.audic.music.constants.AudioQuality
 import kotlinx.serialization.json.Json
 import com.audic.music.utils.cipher.CipherDeobfuscator
 import com.audic.music.utils.YTPlayerUtils.MAIN_CLIENT
-import com.audic.music.utils.YTPlayerUtils.STREAM_FALLBACK_CLIENTS
 import com.audic.music.utils.potoken.PoTokenGenerator
 import com.audic.music.utils.potoken.PoTokenResult
 import com.audic.music.utils.sabr.EjsNTransformSolver
@@ -99,35 +99,38 @@ object YTPlayerUtils {
 
     private val poTokenGenerator = PoTokenGenerator()
 
+    private const val POTOKEN_WARMUP_VIDEO_ID = "jNQXAC9IVRw"
 
-    // TVHTML5_SIMPLY_EMBEDDED_PLAYER is the most reliable client for returning direct
-    // stream URLs. YouTube has moved mobile/VR clients (ANDROID_VR, IOS, etc.) to
-    // SABR-only responses where adaptiveFormats[i].url is null. Embedded TV clients
-    // still return plain URLs and are far less aggressively throttled.
-    private val MAIN_CLIENT: YouTubeClient = TVHTML5_SIMPLY_EMBEDDED_PLAYER
+    suspend fun prewarmPoToken() {
+        val sessionId = YouTube.visitorData ?: return
+        if (!MAIN_CLIENT.useWebPoTokens) return
+        runCatching {
+            poTokenGenerator.getWebClientPoToken(POTOKEN_WARMUP_VIDEO_ID, sessionId)
+        }.onFailure {
+            Timber.tag(TAG).w(it, "PoToken prewarm skipped: ${it.message}")
+        }
+    }
+
+    // WEB_REMIX is the primary client — it's the lightest YouTube Music web client,
+    // responds fastest, and returns direct stream URLs reliably. Other clients
+    // (ANDROID_VR, IOS, etc.) are increasingly SABR-only where adaptiveFormats[i].url
+    // is null; embedded TV clients still return URLs but are heavier.
+    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val METADATA_CLIENT: YouTubeClient = WEB_REMIX
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        // YouTube Music web — least aggressively throttled for music content
         WEB_REMIX,
-        // Embedded TV player — bypasses age-restriction, returns direct URLs
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        // Apple visionOS — newest client, YouTube hasn't SABR-blocked it yet
         VISIONOS,
-        // Android Creator — studio client, less likely to be throttled
         ANDROID_CREATOR,
-        // ANDROID_TESTSUITE — reliable, often works without PoToken
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         ANDROID_TESTSUITE,
-        // Older VR version — non-adaptive bitrate, may work when newer doesn't
         ANDROID_VR_1_43_32,
-        // Mobile/VR clients — increasingly SABR-only, keep as deep fallback
         ANDROID_VR_NO_AUTH,
         ANDROID_VR,
         IOS,
         IPADOS,
         MOBILE,
-        // Web variants — lowest priority
         WEB,
         WEB_CREATOR,
         TVHTML5
