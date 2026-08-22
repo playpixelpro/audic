@@ -116,13 +116,13 @@ android {
 
     signingConfigs {
         create("persistentDebug") {
-            storeFile = file("persistent-debug.keystore")
+            storeFile = project.file("persistent-debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
         create("release") {
-            storeFile = file("keystore/release.keystore")
+            storeFile = project.file("keystore/release.keystore")
             storePassword = System.getenv("STORE_PASSWORD") ?: "android"
             keyAlias = System.getenv("KEY_ALIAS") ?: "audicrelease"
             keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
@@ -131,7 +131,7 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
             storePassword = "android"
-            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+            storeFile = project.file("${System.getProperty("user.home")}/.android/debug.keystore")
         }
     }
 
@@ -181,7 +181,7 @@ android {
     }
 
     lint {
-        lintConfig = file("lint.xml")
+        lintConfig = project.file("lint.xml")
         warningsAsErrors = false
         abortOnError = false
         checkDependencies = false
