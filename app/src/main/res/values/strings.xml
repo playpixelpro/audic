@@ -408,6 +408,13 @@
     <string name="listenbrainz_scrobbling_description">Automatically submit your listened tracks to ListenBrainz</string>
     <string name="export_directory_unavailable">Unable to access an export directory on this device. Please set one manually.</string>
     <string name="set_listenbrainz_token">Set ListenBrainz Token</string>
+    <string name="get_listenbrainz_token">Get your ListenBrainz token</string>
+    <string name="listenbrainz_token_set">ListenBrainz token is set</string>
+    <string name="listenbrainz_token_not_set">No ListenBrainz token configured</string>
+    <string name="validate_token">Validate token</string>
+    <string name="token_valid">Token is valid</string>
+    <string name="token_invalid">Token is invalid</string>
+    <string name="validating_token">Validating token…</string>
 
     <!-- Audic Extractor Settings -->
     <string name="youtube_decryption_settings">Audic Extractor</string>

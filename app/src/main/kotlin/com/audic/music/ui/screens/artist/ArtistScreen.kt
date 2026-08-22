@@ -131,6 +131,7 @@ import com.audic.music.ui.utils.isScrollingUp
 import com.audic.music.ui.utils.resize
 import com.audic.music.utils.listItemShape
 import com.audic.music.utils.rememberPreference
+import com.audic.music.utils.ShareUtil
 import com.audic.music.viewmodels.ArtistViewModel
 import com.valentinilk.shimmer.shimmer
 import com.audic.music.artistvideo.ArtistVideo
@@ -1100,10 +1101,7 @@ fun ArtistScreen(
             IconButton(
                 onClick = {
                     viewModel.artistPage?.artist?.shareLink?.let { link ->
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Artist Link", link)
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                        ShareUtil.shareUrl(context, coroutineScope, link)
                     }
                 },
             ) {

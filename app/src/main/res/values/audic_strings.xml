@@ -310,6 +310,12 @@
     <string name="last_fm_send_likes">Send Likes/Unlikes</string>
     <string name="last_fm_send_likes_description">Love/Unlove songs in Last.fm when they are Liked/Unliked in audicmusic</string>
     <string name="logging_in">Logging in…</string>
+    <string name="login_with_browser">Log in via browser</string>
+    <string name="login_webview_title">Authorize Audic</string>
+    <string name="login_webview_loading">Loading authorization page…</string>
+    <string name="auth_success">Successfully authenticated!</string>
+    <string name="auth_failed">Authorization failed</string>
+    <string name="auth_error_format">Error: %s</string>
 
     <!-- Libre.fm -->
     <string name="librefm_integration">Libre.fm Integration</string>

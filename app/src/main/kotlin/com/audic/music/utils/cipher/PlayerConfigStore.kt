@@ -324,8 +324,8 @@ object PlayerConfigStore {
                     return FetchResult(changed = false, reachedServer = true)
                 }
 
-                val body = response.body?.string()
-                if (body.isNullOrEmpty()) {
+                val body = response.body.string()
+                if (body.isEmpty()) {
                     Timber.tag(TAG).w("${source.name} config fetch returned empty body — keeping previous configs")
                     return FetchResult(changed = false, reachedServer = true)
                 }

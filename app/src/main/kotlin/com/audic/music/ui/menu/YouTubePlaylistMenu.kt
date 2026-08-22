@@ -82,6 +82,7 @@ import com.audic.music.ui.component.YouTubeListItem
 import com.audic.music.ui.utils.resize
 import com.audic.music.utils.joinByBullet
 import com.audic.music.utils.makeTimeString
+import com.audic.music.utils.ShareUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -592,12 +593,7 @@ fun YouTubePlaylistMenu(
                                 )
                             },
                             onClick = {
-                                val intent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, playlist.shareLink)
-                                }
-                                context.startActivity(Intent.createChooser(intent, null))
+                                ShareUtil.shareUrl(context, coroutineScope, playlist.shareLink)
                                 onDismiss()
                             }
                         )

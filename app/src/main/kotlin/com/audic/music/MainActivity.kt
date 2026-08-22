@@ -546,7 +546,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val (enableHaptics) = rememberPreference(com.audic.music.constants.EnableHapticsKey, defaultValue = true)
+        val (enableHaptics) = rememberPreference(com.audic.music.constants.EnableHapticsKey, defaultValue = false)
         val view = LocalView.current
         var lastScrollHapticTime by remember { mutableStateOf(0L) }
 
@@ -1459,7 +1459,7 @@ class MainActivity : ComponentActivity() {
             else -> {
                 val videoId = when {
                     path == "watch" -> uri.getQueryParameter("v")
-                    uri.host == "youtu.be" || uri.host == "share.echomusic.fun" -> uri.pathSegments.firstOrNull()
+                    uri.host == "youtu.be" || uri.host == "music.youtube.com" -> uri.pathSegments.firstOrNull()
                     else -> null
                 }
 

@@ -5,6 +5,8 @@
 
 package com.audic.music.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,15 +18,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -40,10 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
@@ -94,11 +94,12 @@ fun LibreFMSettingsScreen(
     var showLoginDialog by rememberSaveable { mutableStateOf(false) }
     var isLoggingIn by rememberSaveable { mutableStateOf(false) }
     var loginError by rememberSaveable { mutableStateOf<String?>(null) }
+    var authUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingToken by rememberSaveable { mutableStateOf<String?>(null) }
+    var browserOpened by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if (showLoginDialog) {
-        var tempUsername by rememberSaveable { mutableStateOf("") }
-        var tempPassword by rememberSaveable { mutableStateOf("") }
-
         AlertDialog(
             properties = DialogProperties(usePlatformDefaultWidth = false),
             onDismissRequest = {
@@ -107,42 +108,49 @@ fun LibreFMSettingsScreen(
                     loginError = null
                 }
             },
-            title = { Text(stringResource(R.string.login)) },
+            title = { Text(stringResource(R.string.login_webview_title)) },
             text = {
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = tempUsername,
-                        onValueChange = {
-                            tempUsername = it
-                            loginError = null
-                        },
-                        label = { Text(stringResource(R.string.username)) },
-                        singleLine = true,
-                        enabled = !isLoggingIn,
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Step 1: Tap \"Open browser\" to authorize on Libre.fm",
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                    OutlinedTextField(
-                        value = tempPassword,
-                        onValueChange = {
-                            tempPassword = it
-                            loginError = null
-                        },
-                        label = { Text(stringResource(R.string.password)) },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        enabled = !isLoggingIn,
+                    Text(
+                        text = "Step 2: Log in and authorize the app in your browser",
+                        style = MaterialTheme.typography.bodyMedium
                     )
+                    Text(
+                        text = "Step 3: Return here and tap \"Done\"",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    if (!browserOpened) {
+                        FilledTonalButton(
+                            onClick = {
+                                loginError = null
+                                coroutineScope.launch {
+                                    val url = LibreFM.getOAuthUrlOrNull()
+                                    if (url != null) {
+                                        authUrl = url
+                                        pendingToken = url.substringAfter("token=")
+                                        browserOpened = true
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                    } else {
+                                        loginError = "Failed to start authorization."
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.login_with_browser))
+                        }
+                    }
 
                     loginError?.let { error ->
                         Text(
                             text = error,
                             color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 8.dp)
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
 
@@ -152,9 +160,7 @@ fun LibreFMSettingsScreen(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp)
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(
                                 text = stringResource(R.string.logging_in),
@@ -167,24 +173,18 @@ fun LibreFMSettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (tempUsername.isBlank() || tempPassword.isBlank()) {
-                            loginError = "Please enter both username and password"
-                            return@TextButton
-                        }
-
-                        isLoggingIn = true
-                        loginError = null
-
-                        coroutineScope.launch(Dispatchers.IO) {
-                            try {
-                                LibreFM.getMobileSession(tempUsername, tempPassword)
+                        if (pendingToken != null) {
+                            isLoggingIn = true
+                            loginError = null
+                            coroutineScope.launch(Dispatchers.IO) {
+                                LibreFM.getSession(pendingToken!!)
                                     .onSuccess { auth ->
                                         librefmUsername = auth.session.name
                                         librefmSession = auth.session.key
                                         LibreFM.sessionKey = auth.session.key
-
                                         coroutineScope.launch(Dispatchers.Main) {
                                             isLoggingIn = false
+                                            browserOpened = false
                                             showLoginDialog = false
                                             loginError = null
                                         }
@@ -193,31 +193,17 @@ fun LibreFMSettingsScreen(
                                         coroutineScope.launch(Dispatchers.Main) {
                                             isLoggingIn = false
                                             loginError = when (exception) {
-                                                is LastFmException -> {
-                                                    when (exception.code) {
-                                                        4 -> "Invalid username or password"
-                                                        9 -> "Invalid session key"
-                                                        10 -> "Invalid API key"
-                                                        13 -> "Invalid method signature"
-                                                        15 -> "Service temporarily unavailable"
-                                                        else -> "Login failed: ${exception.message}"
-                                                    }
-                                                }
+                                                is LastFmException -> "Login failed: ${exception.message}"
                                                 else -> "Network error. Please check your connection."
                                             }
                                         }
                                     }
-                            } catch (e: Exception) {
-                                coroutineScope.launch(Dispatchers.Main) {
-                                    isLoggingIn = false
-                                    loginError = "Unexpected error occurred"
-                                }
                             }
                         }
                     },
-                    enabled = !isLoggingIn
+                    enabled = browserOpened && !isLoggingIn
                 ) {
-                    Text(stringResource(R.string.login))
+                    Text("Done, I've authorized")
                 }
             },
             dismissButton = {
@@ -226,11 +212,11 @@ fun LibreFMSettingsScreen(
                         if (!isLoggingIn) {
                             showLoginDialog = false
                             loginError = null
+                            browserOpened = false
                         }
-                    },
-                    enabled = !isLoggingIn
+                    }
                 ) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(android.R.string.cancel))
                 }
             }
         )
@@ -275,7 +261,7 @@ fun LibreFMSettingsScreen(
                             }
                         } else {
                             OutlinedButton(onClick = { showLoginDialog = true }) {
-                                Text(stringResource(R.string.action_login))
+                                Text(stringResource(R.string.login_with_browser))
                             }
                         }
                     },

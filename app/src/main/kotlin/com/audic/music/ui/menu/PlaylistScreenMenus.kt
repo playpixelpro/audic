@@ -9,6 +9,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.exoplayer.offline.Download
 import com.audic.music.LocalListenTogetherManager
 import com.audic.music.R
+import com.audic.music.utils.ShareUtil
 import com.audic.music.db.entities.Playlist
 import com.audic.music.db.entities.PlaylistSong
 import com.audic.music.ui.component.Material3MenuGroup
@@ -37,6 +39,7 @@ fun LocalPlaylistMenu(
     onQueue: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isGuestPlaybackRestricted == true
 
@@ -193,18 +196,18 @@ fun LocalPlaylistMenu(
                     )
                 },
                 onClick = {
-                    val shareText = if (isYouTubePlaylist) {
-                        "https://share.echomusic.fun/playlist?list=${playlist.playlist.browseId}"
+                    if (isYouTubePlaylist) {
+                        ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${playlist.playlist.browseId}")
                     } else {
-                        songs.joinToString("\n") { it.song.song.title }
+                        val shareText = songs.joinToString("\n") { it.song.song.title }
+                        val sendIntent: Intent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                            type = "text/plain"
+                        }
+                        val shareIntent = Intent.createChooser(sendIntent, null)
+                        context.startActivity(shareIntent)
                     }
-                    val sendIntent: Intent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, shareText)
-                        type = "text/plain"
-                    }
-                    val shareIntent = Intent.createChooser(sendIntent, null)
-                    context.startActivity(shareIntent)
                     onDismiss()
                 }
             )

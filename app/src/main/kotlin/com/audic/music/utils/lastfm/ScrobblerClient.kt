@@ -28,14 +28,14 @@ class LastFmException(val code: Int, override val message: String) : Exception(m
  */
 open class ScrobblerClient(
     private val baseUrl: String,
-    private val authUrlBase: String,
+    protected val authUrlBase: String,
     apiKey: String,
     secret: String,
 ) {
     /** Session key from a successful login. Null means "not logged in". */
     var sessionKey: String? = null
 
-    private var apiKey: String = apiKey
+    protected var apiKey: String = apiKey
     private var secret: String = secret
 
     private val json = Json {

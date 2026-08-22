@@ -124,7 +124,7 @@ android {
         create("release") {
             storeFile = file("keystore/release.keystore")
             storePassword = System.getenv("STORE_PASSWORD") ?: "android"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "echorelease"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "audicrelease"
             keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
         }
         getByName("debug") {
@@ -349,6 +349,9 @@ dependencies {
     // Protobuf for message serialization (lite version for Android)
     implementation(libs.protobuf.javalite)
     implementation(libs.protobuf.kotlin.lite)
+
+    // Short.io SDK for share link tracking
+    implementation("com.github.Short-io:android-sdk:v1.0.4")
 
     coreLibraryDesugaring(libs.desugaring)
     implementation(libs.timber)

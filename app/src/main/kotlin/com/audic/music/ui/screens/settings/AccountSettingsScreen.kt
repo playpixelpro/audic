@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.ButtonGroupDefaults
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +46,9 @@ import com.audic.music.utils.rememberPreference
 import com.audic.music.viewmodels.AccountSettingsViewModel
 import com.audic.music.viewmodels.HomeViewModel
 import com.audic.music.R
+import com.music.audic.ui.screens.settings.ListenBrainzManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AccountSettingsScreen(
@@ -79,6 +84,8 @@ fun AccountSettingsScreen(
     var showTokenEditor by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showListenBrainzTokenEditor by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -298,9 +305,18 @@ fun AccountSettingsScreen(
                                 if (listenBrainzToken.isBlank()) {
                                     stringResource(R.string.set_listenbrainz_token)
                                 } else {
-                                    "ListenBrainz token set"
+                                    stringResource(R.string.listenbrainz_token_set)
                                 }
                             )
+                        },
+                        description = {
+                            if (listenBrainzToken.isNotBlank()) {
+                                Text(
+                                    text = "••••${listenBrainzToken.takeLast(4)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         },
                         onClick = { showListenBrainzTokenEditor = true }
                     )
@@ -414,22 +430,99 @@ fun AccountSettingsScreen(
         }
 
         if (showListenBrainzTokenEditor) {
-            TextFieldDialog(
-                initialTextFieldValue = TextFieldValue(listenBrainzToken),
-                onDone = { data ->
-                    onListenBrainzTokenChange(data)
-                    showListenBrainzTokenEditor = false
-                },
+            var validating by remember { mutableStateOf(false) }
+            var validationResult by remember { mutableStateOf<String?>(null) }
+            var tempValue by remember { mutableStateOf(listenBrainzToken) }
+
+            DefaultDialog(
                 onDismiss = { showListenBrainzTokenEditor = false },
-                singleLine = true,
-                maxLines = 1,
-                isInputValid = {
-                    it.isNotEmpty()
-                },
-                extraContent = {
+                title = { Text(stringResource(R.string.set_listenbrainz_token)) },
+                buttons = {
+                    TextButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse("https://listenbrainz.org/settings/"))
+                            )
+                        }
+                    ) {
+                        Text(stringResource(R.string.get_listenbrainz_token))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    TextButton(onClick = { showListenBrainzTokenEditor = false }) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                    TextButton(
+                        onClick = {
+                            onListenBrainzTokenChange(tempValue)
+                            showListenBrainzTokenEditor = false
+                        },
+                        enabled = tempValue.isNotEmpty()
+                    ) {
+                        Text(stringResource(android.R.string.ok))
+                    }
+                }
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = tempValue,
+                        onValueChange = {
+                            tempValue = it
+                            validationResult = null
+                        },
+                        label = { Text(stringResource(R.string.set_listenbrainz_token)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (tempValue.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (validating) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = stringResource(R.string.validating_token),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            } else {
+                                val validText = stringResource(R.string.token_valid)
+                                val invalidText = stringResource(R.string.token_invalid)
+                                FilledTonalButton(
+                                    onClick = {
+                                        validating = true
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            val valid = ListenBrainzManager.validateToken(tempValue)
+                                            coroutineScope.launch(Dispatchers.Main) {
+                                                validating = false
+                                                validationResult = if (valid) validText else invalidText
+                                            }
+                                        }
+                                    },
+                                    contentPadding = ButtonDefaults.TextButtonContentPadding
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.validate_token),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                            validationResult?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (it == stringResource(R.string.token_valid))
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+
                     InfoLabel(text = stringResource(R.string.listenbrainz_scrobbling_description))
                 }
-            )
+            }
         }
         
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)))

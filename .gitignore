@@ -7,6 +7,7 @@ build/
 
 # IDE
 .idea/
+.vscode/
 *.iml
 *.iws
 
@@ -30,6 +31,10 @@ Desktop.ini
 *.aab
 *.ap_
 
+# Encoded keystore export (sensitive — base64 of your keystore)
+keystore.b64
+*.b64
+
 # Native build
 .externalNativeBuild/
 .cxx/
@@ -51,3 +56,4 @@ CLAUDE.md
 .kilo/
 reference/
 audic_key
+reference2/

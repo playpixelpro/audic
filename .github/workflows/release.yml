@@ -1,68 +1,74 @@
-name: Create Release
+name: Build Signed Release APK
 
 on:
   push:
     tags:
-      - 'v*' # Triggers when you push a tag like v1.0.7
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: 21
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Extract Release Notes
-        id: extract_notes
-        run: |
-          # Get version from tag (e.g., v1.0.7 -> 1.0.7)
-          VERSION=${GITHUB_REF_NAME#v}
-          echo "Extracting notes for version $VERSION"
-          
-          # Extract text between the version header and the next header
-          awk "/^## $VERSION/{flag=1;next}/^## /{flag=0}flag" CHANGELOG.md > release_notes.md
-          
-          # Fallback if no notes found
-          if [ ! -s release_notes.md ]; then
-            echo "No specific notes found for $VERSION in CHANGELOG.md"
-            echo "New release $VERSION" > release_notes.md
-          fi
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Decode Keystore
-        if: env.HAS_KEYSTORE == 'true'
+      - name: Decode keystore
         run: |
-          mkdir -p app/keystore
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore/release.keystore
-        env:
-          HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+          mkdir -p keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore/release.keystore
+
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> local.properties
+          echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" >> local.properties
+          echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build APKs
-        run: ./gradlew :app:assembleUniversalFossRelease :app:assembleUniversalGmsRelease --stacktrace
+      - name: Build universal FOSS release APK
+        run: ./gradlew assembleUniversalFossRelease
         env:
-          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096M -XX:MaxMetaspaceSize=1024M" -Dorg.gradle.daemon=false
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
+      - name: Build universal GMS release APK
+        run: ./gradlew assembleUniversalGmsRelease
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: audic-release-apks
+          path: |
+            app/build/outputs/apk/universalFoss/release/*.apk
+            app/build/outputs/apk/universalGms/release/*.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          body_path: release_notes.md
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
           files: |
-            app/build/outputs/apk/**/*.apk
+            app/build/outputs/apk/universalFoss/release/*.apk
+            app/build/outputs/apk/universalGms/release/*.apk
+          generate_release_notes: true

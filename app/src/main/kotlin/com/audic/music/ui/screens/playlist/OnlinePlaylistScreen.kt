@@ -128,6 +128,7 @@ import com.audic.music.ui.utils.backToMain
 import com.audic.music.utils.listItemShape
 import com.audic.music.utils.makeTimeString
 import com.audic.music.utils.rememberPreference
+import com.audic.music.utils.ShareUtil
 import com.audic.music.viewmodels.OnlinePlaylistViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -839,12 +840,7 @@ private fun OnlinePlaylistHeader(
                 
                 Surface(
                     onClick = {
-                        val intent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, playlist.shareLink)
-                        }
-                        context.startActivity(Intent.createChooser(intent, null))
+                        ShareUtil.shareUrl(context, coroutineScope, playlist.shareLink)
                     },
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant,

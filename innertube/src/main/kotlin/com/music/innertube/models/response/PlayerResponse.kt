@@ -40,6 +40,8 @@ data class PlayerResponse(
         val formats: List<Format>?,
         val adaptiveFormats: List<Format>,
         val expiresInSeconds: Int,
+        @SerialName("serverAbrStreamingUrl")
+        val serverAbrStreamingUrl: String? = null,
     ) {
         @Serializable
         data class Format(

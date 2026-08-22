@@ -733,7 +733,7 @@ class InnerTube {
             val response = next(client = YouTubeClient.WEB, videoId, null, null, null, null, null).body<NextResponse>()
 
             val baseForInfo =
-                response.contents.twoColumnWatchNextResults
+                response.contents?.twoColumnWatchNextResults
                     ?.results
                     ?.results
                     ?.content
@@ -742,7 +742,7 @@ class InnerTube {
                     }?.videoSecondaryInfoRenderer
 
             val baseForTitle =
-                response.contents.twoColumnWatchNextResults
+                response.contents?.twoColumnWatchNextResults
                     ?.results
                     ?.results
                     ?.content
