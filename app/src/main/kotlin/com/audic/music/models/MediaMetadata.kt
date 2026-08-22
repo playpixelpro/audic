@@ -11,7 +11,7 @@ import com.audic.music.ui.utils.resize
 import java.io.Serializable
 import java.time.LocalDateTime
 
-enum class QueueItemSource { USER }
+enum class QueueItemSource { USER, AUDIC_BRAIN }
 
 @Immutable
 data class MediaMetadata(

@@ -1,0 +1,42 @@
+# Auto detect text files and normalize line endings
+* text=auto
+
+# Kotlin source files
+*.kt text diff=kotlin
+
+# Shell scripts
+*.sh text eol=lf
+
+# Batch files
+*.bat text eol=crlf
+
+# Gradle
+*.gradle text diff=java
+*.kts text=auto
+*.gradle.kts text=auto
+
+# XML/HTML/YAML/JSON
+*.xml text
+*.html text diff=html
+*.yml text
+*.yaml text
+*.json text
+
+# Markdown
+*.md text
+
+# ProGuard
+*.pro text
+*.cfg text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.keystore binary
+*.jks binary
+*.bks binary
+*.apk binary
+*.aab binary
+*.dm binary

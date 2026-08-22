@@ -391,7 +391,17 @@ fun NavGraphBuilder.navigationBuilder(
     ) { backStackEntry ->
         AiSettings(navController, scrollBehavior, highlightKey = backStackEntry.arguments?.getString("highlightKey"))
     }
-    
+
+    composable(
+        route = "settings/brain?highlightKey={highlightKey}",
+        arguments = listOf(navArgument("highlightKey") { type = NavType.StringType; nullable = true })
+    ) { backStackEntry ->
+        com.audic.music.brain.ui.BrainSettingsScreen(
+            navController, scrollBehavior,
+            highlightKey = backStackEntry.arguments?.getString("highlightKey")
+        )
+    }
+
     composable(
         route = "settings/player?highlightKey={highlightKey}",
         arguments = listOf(navArgument("highlightKey") { type = NavType.StringType; nullable = true })

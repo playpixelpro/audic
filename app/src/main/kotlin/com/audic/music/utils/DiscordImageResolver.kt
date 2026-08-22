@@ -94,7 +94,7 @@ object DiscordImageResolver {
             }
 
             "appicon" -> {
-                "https://avatars.githubusercontent.com/u/258176326?s=200&v=4"
+                "https://raw.githubusercontent.com/dindoquitor/audic/main/assets/Audic-new.png"
             }
 
             "custom" -> {

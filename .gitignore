@@ -10,6 +10,7 @@ build/
 .vscode/
 *.iml
 *.iws
+.kotlin/
 
 # Android
 local.properties
@@ -35,6 +36,10 @@ Desktop.ini
 keystore.b64
 *.b64
 
+# Baseline profiles (generated build artifacts)
+*/release/baselineProfiles/
+**/baselineProfiles/*.dm
+
 # Native build
 .externalNativeBuild/
 .cxx/
@@ -45,6 +50,17 @@ keystore.b64
 # Secrets (sensitive — never commit)
 secrets.properties
 **/assets/po_token.html
+
+# Compiled Kotlin/Native binaries
+applecanvas/bin/
+canvas/bin/
+unison/bin/
+
+# Generated config cache reports
+configuration-cache-report.html
+
+# Error/null files
+$null
 
 # Misc
 *.log

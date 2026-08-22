@@ -23,6 +23,8 @@ import com.audic.music.db.entities.AlbumArtistMap
 import com.audic.music.db.entities.AlbumEntity
 import com.audic.music.db.entities.ArtistEntity
 import com.audic.music.db.entities.BeatInfoEntity
+import com.audic.music.db.entities.BrainListeningSession
+import com.audic.music.db.entities.BrainSuggestionLog
 import com.audic.music.db.entities.Event
 import com.audic.music.db.entities.FormatEntity
 import com.audic.music.db.entities.LyricsEntity
@@ -40,6 +42,7 @@ import com.audic.music.db.entities.SongEntity
 import com.audic.music.db.entities.SpeedDialItem
 import com.audic.music.db.entities.SortedSongAlbumMap
 import com.audic.music.db.entities.SortedSongArtistMap
+import com.audic.music.brain.BrainDao
 import com.audic.music.extensions.toSQLiteQuery
 import timber.log.Timber
 import java.time.Instant
@@ -52,6 +55,9 @@ class MusicDatabase(
 ) : DatabaseDao by delegate.dao {
     val speedDialDao: SpeedDialDao
         get() = delegate.speedDialDao
+
+    val brainDao: BrainDao
+        get() = delegate.brainDao
 
     val openHelper: SupportSQLiteOpenHelper
         get() = delegate.openHelper
@@ -105,14 +111,16 @@ class MusicDatabase(
         PlayCountEntity::class,
         RecognitionHistory::class,
         SpeedDialItem::class,
-        BeatInfoEntity::class
+        BeatInfoEntity::class,
+        BrainListeningSession::class,
+        BrainSuggestionLog::class
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 43,
+    version = 44,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -148,12 +156,14 @@ class MusicDatabase(
         AutoMigration(from = 35, to = 36),
         AutoMigration(from = 36, to = 37, spec = Migration36To37Spec::class),
         AutoMigration(from = 41, to = 42, spec = Migration41To42::class),
+        AutoMigration(from = 43, to = 44),
     ],
 )
 @TypeConverters(Converters::class)
 abstract class InternalDatabase : RoomDatabase() {
     abstract val dao: DatabaseDao
     abstract val speedDialDao: SpeedDialDao
+    abstract val brainDao: com.audic.music.brain.BrainDao
 
     companion object {
         const val DB_NAME = "song.db"
@@ -179,6 +189,7 @@ abstract class InternalDatabase : RoomDatabase() {
                             MIGRATION_40_41,
                             MIGRATION_41_42,
                             MIGRATION_42_43,
+                            MIGRATION_43_44,
                         )
                         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                         .setTransactionExecutor(java.util.concurrent.Executors.newFixedThreadPool(4))
@@ -960,5 +971,40 @@ val MIGRATION_41_42 = object : Migration(41, 42) {
 val MIGRATION_42_43 = object : Migration(42, 43) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE song ADD COLUMN localArtworkPath TEXT DEFAULT NULL")
+    }
+}
+
+val MIGRATION_43_44 = object : Migration(43, 44) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `brain_listening_session` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `trackId` TEXT NOT NULL,
+                `trackTitle` TEXT NOT NULL,
+                `artistNames` TEXT NOT NULL,
+                `startedAt` INTEGER NOT NULL,
+                `endedAt` INTEGER,
+                `playDurationMs` INTEGER NOT NULL DEFAULT 0,
+                `trackDurationMs` INTEGER NOT NULL DEFAULT -1,
+                `wasSkipped` INTEGER NOT NULL DEFAULT 0,
+                `wasCompleted` INTEGER NOT NULL DEFAULT 0,
+                `source` TEXT NOT NULL DEFAULT 'user'
+            )
+        """.trimIndent())
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `brain_suggestion_log` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `trackId` TEXT NOT NULL,
+                `trackTitle` TEXT NOT NULL,
+                `artistNames` TEXT NOT NULL,
+                `suggestedAt` INTEGER NOT NULL,
+                `source` TEXT NOT NULL,
+                `flowScore` INTEGER NOT NULL DEFAULT 0,
+                `scoreReasons` TEXT NOT NULL DEFAULT '',
+                `artistAffinityScore` REAL NOT NULL DEFAULT 0.0,
+                `wasAccepted` INTEGER NOT NULL DEFAULT 0,
+                `wasSkipped` INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
     }
 }

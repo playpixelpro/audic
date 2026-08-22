@@ -465,4 +465,8 @@
     <string name="ai_recommendations">AI Recommendations</string>
     <string name="ai_recommendations_desc">Daily update of a custom playlist based on your taste</string>
     <string name="ai_recommendations_refresh">Refresh Recommendations</string>
+    <string name="audic_brain">Audic Brain</string>
+    <string name="audic_brain_desc">On-device personalized recommendations that learn from your listening behavior</string>
+    <string name="why_this_song">Why this song?</string>
+    <string name="why_this_song_desc">See why Audic Brain recommended this track</string>
 </resources>

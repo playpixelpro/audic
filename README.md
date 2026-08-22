@@ -182,7 +182,7 @@ Audic Music stands on the shoulders of several excellent open-source projects:
 | [Better Lyrics](https://better-lyrics.boidu.dev/) | Lyrics enhancement and synchronization |
 | [SimpMusic](https://github.com/maxrave-dev/SimpMusic) | Lyrics implementation reference |
 | [Music Recognizer](https://github.com/aleksey-saenko/MusicRecognizer) | Audio recognition (Echo Find) |
-| [Flow](https://github.com/a-edev/Flow) | AI queue generation engine (Echo Brain) |
+| [Flow](https://github.com/a-edev/Flow) | AI queue generation engine |
 | [zemer-cipher](https://github.com/ZemerTeam/zemer-cipher) | Cipher deobfuscation and PoToken generation |
 | [Echo Music](https://github.com/EchoMusicApp/Echo-Music) | Inspiration |
 
