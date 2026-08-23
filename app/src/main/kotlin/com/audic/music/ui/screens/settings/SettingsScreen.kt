@@ -78,6 +78,7 @@ highlightKey: String? = null) {
     val privacyText = stringResource(R.string.privacy)
     val storageText = stringResource(R.string.storage)
     val backupText = stringResource(R.string.backup_restore)
+    val brainText = "Audic Brain"
     val systemUpdateText = stringResource(R.string.system_update)
     val aboutText = stringResource(R.string.about)
 
@@ -159,6 +160,16 @@ highlightKey: String? = null) {
                         },
                         title = { Text(aiLyricsText) },
                         onClick = { navController.navigate("settings/ai") }
+                    )
+                )
+            }
+
+            if (brainText.lowercase().contains(searchLower)) {
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.sparks),
+                        title = { Text(brainText) },
+                        onClick = { navController.navigate("settings/brain") }
                     )
                 )
             }

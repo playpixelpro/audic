@@ -40,6 +40,7 @@ import com.audic.music.ui.component.Material3MenuItemData
 import com.audic.music.ui.component.NewAction
 import com.audic.music.ui.component.NewActionGrid
 import com.audic.music.ui.component.YouTubeListItem
+import com.audic.music.utils.ShareUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -143,12 +144,7 @@ fun YouTubeArtistMenu(
                             },
                             text = stringResource(R.string.share),
                             onClick = {
-                                val intent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, artist.shareLink)
-                                }
-                                context.startActivity(Intent.createChooser(intent, null))
+                                ShareUtil.shareUrl(context, coroutineScope, artist.shareLink)
                                 onDismiss()
                             }
                         )

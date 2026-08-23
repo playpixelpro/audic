@@ -36,7 +36,7 @@ object ListenTogetherServers {
                 val client = okhttp3.OkHttpClient()
                 val request = okhttp3.Request.Builder().url(SERVER_JSON_URL).build()
                 val response = client.newCall(request).execute()
-                response.body?.string()?.let { jsonString ->
+                response.body.string().let { jsonString ->
                     val jsonObject = Json.parseToJsonElement(jsonString).jsonObject
                     val name = jsonObject["name"]?.jsonPrimitive?.content ?: "Hugging Face Sync"
                     val url = jsonObject["serverUrl"]?.jsonPrimitive?.content ?: "wss://devilmi-vivi-music-listen-together.hf.space"

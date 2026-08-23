@@ -1,6 +1,6 @@
 package com.audic.music.utils.lastfm
 
-import com.music.audic.utils.lastfm.ScrobblerClient
+import com.audic.music.utils.lastfm.ScrobblerClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

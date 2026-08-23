@@ -1,67 +1,115 @@
-name: Create Release
+name: Build Signed Release APK
 
 on:
   push:
     tags:
-      - 'v*' # Triggers when you push a tag like v1.0.7
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: 21
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Extract Release Notes
-        id: extract_notes
-        run: |
-          # Get version from tag (e.g., v1.0.7 -> 1.0.7)
-          VERSION=${GITHUB_REF_NAME#v}
-          echo "Extracting notes for version $VERSION"
-          
-          # Extract text between the version header and the next header
-          awk "/^## $VERSION/{flag=1;next}/^## /{flag=0}flag" CHANGELOG.md > release_notes.md
-          
-          # Fallback if no notes found
-          if [ ! -s release_notes.md ]; then
-            echo "No specific notes found for $VERSION in CHANGELOG.md"
-            echo "New release $VERSION" > release_notes.md
-          fi
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Decode Keystore
-        if: env.HAS_KEYSTORE == 'true'
+      - name: Decode keystore
         run: |
           mkdir -p app/keystore
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore/release.keystore
-        env:
-          HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore/release.keystore
+
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> local.properties
+          echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" >> local.properties
+          echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
+          echo "YOURLS_API_KEY=${{ secrets.YOURLS_API_KEY }}" >> local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build APKs
-        run: ./gradlew assembleRelease
+      - name: Build universal FOSS release APK
+        run: |
+          ./gradlew assembleUniversalFossRelease \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g" \
+            --no-daemon -x lint
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          YOURLS_API_KEY: ${{ secrets.YOURLS_API_KEY }}
+
+      - name: Build universal GMS release APK
+        run: |
+          ./gradlew assembleUniversalGmsRelease \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g" \
+            --no-daemon -x lint
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          YOURLS_API_KEY: ${{ secrets.YOURLS_API_KEY }}
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: audic-release-apks
+          path: |
+            app/build/outputs/apk/universalFoss/release/*.apk
+            app/build/outputs/apk/universalGms/release/*.apk
+
+      - name: Generate changelog.json from CHANGELOG.md
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Extracting changelog for version: $VERSION"
+          awk -v ver="$VERSION" '/^## /{if(p){exit} if($0~"## "ver){p=1;next}} p' CHANGELOG.md > /tmp/changelog_items.txt
+          
+          # Build JSON array from bullet points
+          echo '{"changelog":[{"title":"","items":[' > /tmp/changelog.json
+          first=true
+          while IFS= read -r line; do
+            trimmed=$(echo "$line" | sed 's/^[[:space:]]*//')
+            if echo "$trimmed" | grep -q '^- '; then
+              item=$(echo "$trimmed" | sed 's/^- //' | sed 's/"/\\"/g')
+              if [ "$first" = true ]; then
+                printf '"%s"' "$item" >> /tmp/changelog.json
+                first=false
+              else
+                printf ',"%s"' "$item" >> /tmp/changelog.json
+              fi
+            fi
+          done < /tmp/changelog_items.txt
+          echo ']}]}' >> /tmp/changelog.json
+          
+          # Validate JSON
+          cat /tmp/changelog.json | python3 -m json.tool > /dev/null && echo "JSON valid" || echo "JSON invalid"
+          cp /tmp/changelog.json ./changelog.json
+          echo "Generated changelog.json:"
+          cat ./changelog.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          body_path: release_notes.md
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
           files: |
-            app/build/outputs/apk/**/*.apk
+            app/build/outputs/apk/universalFoss/release/*.apk
+            app/build/outputs/apk/universalGms/release/*.apk
+            changelog.json
+          generate_release_notes: true

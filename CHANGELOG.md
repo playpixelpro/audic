@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.1
+
+- New "Recommended for You" home section powered by on-device Audic Brain interest profiling
+- Fix po_token.html missing: BotGuard PoToken generation now works (WEB_REMIX loads faster)
+- Fix get_transcript 400 error: added YouTube Music session headers + WEB_REMIX client
+- Fix Paxsenix Cloudflare 403: switched to Apple Music catalog API search with auto-refreshing JWT tokens
+- Added AppleTokenManager for automatic Apple Music credential rotation
+- Fix .gitignore: track po_token.html as intentional asset, ignore build metadata and baseline profiles
+
+## 1.0.9
+
+- Fix share dialog not opening on Android 14+: `startActivity` now called on main thread with `FLAG_ACTIVITY_NEW_TASK`
+- Fix short.io "Access denied": updated API key and switched to thread-safe cache
+- Fix lyrics alignment: removed double-counted `lyricsOffset` in MetroLyrics rendering
+- Remove redundant non-null assertions and unnecessary Elvis operators
+- Fix typos and remove unused imports/properties across the codebase
+
 ## 1.0.7
 
 - Libre.fm integration: log in with your Libre.fm account and independently toggle scrobbling, now-playing updates, and like sync (Settings → Account → Integrations); scrobbling targets Last.fm and Libre.fm together

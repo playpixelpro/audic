@@ -1,8 +1,9 @@
-package com.music.audic.utils.lastfm
+package com.audic.music.utils.lastfm
 
-import com.music.audic.models.lastfm.Authentication
-import com.music.audic.models.lastfm.LastFmError
-import com.music.audic.models.lastfm.TokenResponse
+import com.audic.music.models.lastfm.Authentication
+import com.audic.music.models.lastfm.LastFmError
+import com.audic.music.models.lastfm.TokenResponse
+import com.audic.music.utils.md5
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -14,7 +15,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import java.security.MessageDigest
 
 /** Raised when the service answers with an `{"error": N, "message": ...}` object. */
 class LastFmException(val code: Int, override val message: String) : Exception(message) {
@@ -28,14 +28,14 @@ class LastFmException(val code: Int, override val message: String) : Exception(m
  */
 open class ScrobblerClient(
     private val baseUrl: String,
-    private val authUrlBase: String,
+    protected val authUrlBase: String,
     apiKey: String,
     secret: String,
 ) {
     /** Session key from a successful login. Null means "not logged in". */
     var sessionKey: String? = null
 
-    private var apiKey: String = apiKey
+    protected var apiKey: String = apiKey
     private var secret: String = secret
 
     private val json = Json {
@@ -97,7 +97,7 @@ open class ScrobblerClient(
         val response = client.post {
             scrobblerParams(
                 method = "auth.getMobileSession",
-                extra = mapOf("username" to username, "password" to password),
+                extra = mapOf("username" to username, "password" to md5(password)),
             )
         }
 
@@ -184,8 +184,7 @@ open class ScrobblerClient(
         /** AudioScrobbler 2.0 api_sig: md5 over sorted `key+value` pairs, then the secret. */
         fun apiSig(params: Map<String, String>, secret: String): String {
             val toHash = params.toSortedMap().entries.joinToString("") { it.key + it.value } + secret
-            val digest = MessageDigest.getInstance("MD5").digest(toHash.toByteArray())
-            return digest.joinToString("") { "%02x".format(it) }
+            return md5(toHash)
         }
     }
 }

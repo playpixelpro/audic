@@ -18,3 +18,6 @@ LASTFM_SECRET=your_lastfm_secret_here
 # Libre.fm API credentials — get yours at https://libre.fm/api/account/create
 LIBREFM_API_KEY=your_librefm_api_key_here
 LIBREFM_SECRET=your_librefm_secret_here
+
+# YOURLS API key for link shortening (short.playpixelpro.com)
+YOURLS_API_KEY=your_yourls_api_key_here

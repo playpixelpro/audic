@@ -408,6 +408,13 @@
     <string name="listenbrainz_scrobbling_description">Automatically submit your listened tracks to ListenBrainz</string>
     <string name="export_directory_unavailable">Unable to access an export directory on this device. Please set one manually.</string>
     <string name="set_listenbrainz_token">Set ListenBrainz Token</string>
+    <string name="get_listenbrainz_token">Get your ListenBrainz token</string>
+    <string name="listenbrainz_token_set">ListenBrainz token is set</string>
+    <string name="listenbrainz_token_not_set">No ListenBrainz token configured</string>
+    <string name="validate_token">Validate token</string>
+    <string name="token_valid">Token is valid</string>
+    <string name="token_invalid">Token is invalid</string>
+    <string name="validating_token">Validating token…</string>
 
     <!-- Audic Extractor Settings -->
     <string name="youtube_decryption_settings">Audic Extractor</string>
@@ -458,4 +465,8 @@
     <string name="ai_recommendations">AI Recommendations</string>
     <string name="ai_recommendations_desc">Daily update of a custom playlist based on your taste</string>
     <string name="ai_recommendations_refresh">Refresh Recommendations</string>
+    <string name="audic_brain">Audic Brain</string>
+    <string name="audic_brain_desc">On-device personalized recommendations that learn from your listening behavior</string>
+    <string name="why_this_song">Why this song?</string>
+    <string name="why_this_song_desc">See why Audic Brain recommended this track</string>
 </resources>

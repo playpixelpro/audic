@@ -399,13 +399,11 @@ class InnerTube {
         videoId: String,
     ) = withRetry {
         httpClient.post("https://music.youtube.com/youtubei/v1/get_transcript") {
+            ytClient(client)
             parameter("key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
-            headers {
-                append("Content-Type", "application/json")
-            }
             setBody(
                 GetTranscriptBody(
-                    context = client.toContext(locale, null, null),
+                    context = client.toContext(locale, visitorData, dataSyncId),
                     params = Base64.Default.encode(
                         "\n${11.toChar()}$videoId".encodeToByteArray()
                     )
@@ -733,7 +731,7 @@ class InnerTube {
             val response = next(client = YouTubeClient.WEB, videoId, null, null, null, null, null).body<NextResponse>()
 
             val baseForInfo =
-                response.contents.twoColumnWatchNextResults
+                response.contents?.twoColumnWatchNextResults
                     ?.results
                     ?.results
                     ?.content
@@ -742,7 +740,7 @@ class InnerTube {
                     }?.videoSecondaryInfoRenderer
 
             val baseForTitle =
-                response.contents.twoColumnWatchNextResults
+                response.contents?.twoColumnWatchNextResults
                     ?.results
                     ?.results
                     ?.content

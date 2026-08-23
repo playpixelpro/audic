@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Alignment
+import com.audic.music.utils.ShareUtil
 import com.audic.music.constants.InnerTubeCookieKey
 import com.audic.music.utils.rememberPreference
 import com.music.innertube.utils.parseCookieString
@@ -367,12 +368,7 @@ fun PlaylistMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://share.echomusic.fun/playlist?list=${dbPlaylist?.playlist?.browseId}")
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${dbPlaylist?.playlist?.browseId}")
                         }
                     )
                 ),
@@ -701,12 +697,7 @@ fun PlaylistMenu(
                                     )
                                 },
                                 onClick = {
-                                    val intent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, shareLink)
-                                    }
-                                    context.startActivity(Intent.createChooser(intent, null))
+                                    ShareUtil.shareUrl(context, coroutineScope, shareLink)
                                     onDismiss()
                                 }
                             )

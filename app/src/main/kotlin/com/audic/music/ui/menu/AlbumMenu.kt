@@ -63,6 +63,7 @@ import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.music.innertube.YouTube
+import com.audic.music.utils.ShareUtil
 import com.audic.music.LocalDatabase
 import com.audic.music.LocalDownloadUtil
 import com.audic.music.LocalListenTogetherManager
@@ -363,12 +364,7 @@ fun AlbumMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://share.echomusic.fun/playlist?list=${album.album.playlistId}")
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${album.album.playlistId}")
                         }
                     )
                 ),

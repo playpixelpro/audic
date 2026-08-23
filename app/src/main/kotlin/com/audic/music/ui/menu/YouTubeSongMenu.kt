@@ -84,6 +84,7 @@ import com.audic.music.ui.component.NewAction
 import com.audic.music.ui.component.NewActionGrid
 import com.audic.music.ui.utils.ShowMediaInfo
 import com.audic.music.ui.utils.resize
+import com.audic.music.utils.ShareUtil
 import com.audic.music.utils.joinByBullet
 import com.audic.music.utils.makeTimeString
 import com.audic.music.utils.rememberPreference
@@ -314,12 +315,7 @@ fun YouTubeSongMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, song.shareLink)
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            ShareUtil.shareUrl(context, coroutineScope, song.shareLink)
                             onDismiss()
                         }
                     )

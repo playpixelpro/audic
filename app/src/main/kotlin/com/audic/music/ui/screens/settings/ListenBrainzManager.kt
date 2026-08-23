@@ -103,7 +103,7 @@ object ListenBrainzManager {
                     } else {
                         val respBody =
                             try {
-                                resp.body?.string() ?: ""
+                                resp.body.string()
                             } catch (e: Exception) {
                                 "<unable to read>"
                             }
@@ -167,7 +167,7 @@ object ListenBrainzManager {
                     } else {
                         val respBody =
                             try {
-                                resp.body?.string() ?: ""
+                                resp.body.string()
                             } catch (e: Exception) {
                                 "<unable to read>"
                             }
@@ -185,4 +185,27 @@ object ListenBrainzManager {
     private fun escapeJson(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
 
     fun isRunning(): Boolean = started.get()
+
+    /** Validates a ListenBrainz token by calling the API's validate endpoint. */
+    suspend fun validateToken(token: String): Boolean {
+        if (token.isBlank()) return false
+        return withContext(Dispatchers.IO) {
+            try {
+                val request =
+                    Request
+                        .Builder()
+                        .url("https://api.listenbrainz.org/1/validate-token")
+                        .get()
+                        .addHeader("Authorization", "Token ${token.trim()}")
+                        .addHeader("User-Agent", "AudicMusic/5.2.7")
+                        .build()
+                httpClient.newCall(request).execute().use { resp ->
+                    resp.isSuccessful
+                }
+            } catch (ex: Exception) {
+                Timber.tag(logTag).e(ex, "validateToken failed")
+                false
+            }
+        }
+    }
 }

@@ -36,6 +36,8 @@ import com.audic.music.db.entities.Song
 import com.audic.music.db.entities.SpeedDialItem
 import com.audic.music.extensions.filterVideoSongs
 import com.audic.music.extensions.toEnum
+import com.audic.music.brain.BrainInterestProfileBuilder
+import com.audic.music.models.toMediaMetadata
 import com.audic.music.models.SimilarRecommendation
 import com.audic.music.utils.SyncUtils
 import com.audic.music.utils.dataStore
@@ -87,6 +89,7 @@ class HomeViewModel @Inject constructor(
     val quickPicks = MutableStateFlow<List<Song>?>(null)
     val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
+    val brainSuggestions = MutableStateFlow<List<Song>?>(null)
     val keepListening = MutableStateFlow<List<LocalItem>?>(null)
     val similarRecommendations = MutableStateFlow<List<SimilarRecommendation>?>(null)
     val accountPlaylists = MutableStateFlow<List<PlaylistItem>?>(null)
@@ -424,6 +427,7 @@ class HomeViewModel @Inject constructor(
         val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
 
         getQuickPicks()
+        loadBrainSuggestions()
 
         forgottenFavorites.value = database.forgottenFavorites().first()
             .filterVideoSongs(hideVideoSongs).shuffled().take(20)
@@ -441,7 +445,21 @@ class HomeViewModel @Inject constructor(
             .filter { it is Song || it is Album }
     }
 
-    
+    private suspend fun loadBrainSuggestions() {
+        val topSongs = database.topSongs(30).first()
+        val likedSongs = database.likedSongsByPlayTimeAsc().first()
+        if (topSongs.isEmpty() && likedSongs.isEmpty()) return
+
+        val profile = BrainInterestProfileBuilder.build(topSongs, likedSongs)
+
+        val scoredSongs = topSongs.map { song ->
+            val score = BrainInterestProfileBuilder.calculateMatchingScore(song.toMediaMetadata(), profile)
+            song to score
+        }.sortedByDescending { it.second }.take(20)
+
+        brainSuggestions.value = scoredSongs.map { it.first }
+    }
+
     private suspend fun loadSimilarRecommendations() {
         val hideExplicit = context.dataStore.get(HideExplicitKey, false)
         val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)

@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.media3.common.PlaybackException
 import com.music.innertube.NewPipeExtractor
 import com.music.innertube.YouTube
+import com.music.innertube.models.ContentHints
 import com.music.innertube.models.YouTubeClient
 import com.music.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
 import com.audic.music.utils.BotDetectionMitigator
@@ -26,9 +27,9 @@ import com.music.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.music.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.music.innertube.models.response.PlayerResponse
 import com.audic.music.constants.AudioQuality
+import kotlinx.serialization.json.Json
 import com.audic.music.utils.cipher.CipherDeobfuscator
 import com.audic.music.utils.YTPlayerUtils.MAIN_CLIENT
-import com.audic.music.utils.YTPlayerUtils.STREAM_FALLBACK_CLIENTS
 import com.audic.music.utils.potoken.PoTokenGenerator
 import com.audic.music.utils.potoken.PoTokenResult
 import com.audic.music.utils.sabr.EjsNTransformSolver
@@ -66,6 +67,8 @@ object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
     private const val TAG = "YTPlayerUtils"
 
+    private val playerResponseJson = Json { ignoreUnknownKeys = true }
+
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .dns(object : Dns {
             override fun lookup(hostname: String): List<InetAddress> {
@@ -96,35 +99,41 @@ object YTPlayerUtils {
 
     private val poTokenGenerator = PoTokenGenerator()
 
+    private const val POTOKEN_WARMUP_VIDEO_ID = "jNQXAC9IVRw"
 
-    // ANDROID_VR is the reliable unauthenticated client for CDN playback without a PoToken.
-    private val MAIN_CLIENT: YouTubeClient = ANDROID_VR
+    suspend fun prewarmPoToken() {
+        val sessionId = YouTube.visitorData ?: return
+        if (!MAIN_CLIENT.useWebPoTokens) return
+        runCatching {
+            poTokenGenerator.getWebClientPoToken(POTOKEN_WARMUP_VIDEO_ID, sessionId)
+        }.onFailure {
+            Timber.tag(TAG).w(it, "PoToken prewarm skipped: ${it.message}")
+        }
+    }
+
+    // WEB_REMIX is the primary client — it's the lightest YouTube Music web client,
+    // responds fastest, and returns direct stream URLs reliably. Other clients
+    // (ANDROID_VR, IOS, etc.) are increasingly SABR-only where adaptiveFormats[i].url
+    // is null; embedded TV clients still return URLs but are heavier.
+    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val METADATA_CLIENT: YouTubeClient = WEB_REMIX
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        // ANDROID_TESTSUITE is highly reliable and often works without PoToken
+        WEB_REMIX,
+        VISIONOS,
+        ANDROID_CREATOR,
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         ANDROID_TESTSUITE,
-        // Best audio quality: non-adaptive bitrate, no AV1 stuttering
         ANDROID_VR_1_43_32,
-        // Standard Android mobile — well-supported, no CDN PoToken requirement
-        MOBILE,
-        // iOS clients
+        ANDROID_VR_NO_AUTH,
+        ANDROID_VR,
         IOS,
         IPADOS,
-        // Apple visionOS — still returns direct stream URLs while the mobile clients
-        // (IOS, ANDROID, ANDROID_VR...) are being moved to SABR-only responses
-        // (formats with no url / signatureCipher). Same client NewPipe switched to.
-        VISIONOS,
-        // Web clients with PoToken support (require working WebView for PoToken)
-        WEB_REMIX,
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        // More Android/iOS/TV variants
-        ANDROID_CREATOR,
-        ANDROID_VR_NO_AUTH,
-        TVHTML5,
+        MOBILE,
         WEB,
-        WEB_CREATOR
+        WEB_CREATOR,
+        TVHTML5
     )
     data class PlaybackData(
         val audioConfig: PlayerResponse.PlayerConfig.AudioConfig?,
@@ -171,6 +180,17 @@ object YTPlayerUtils {
     // minted by web-based clients (WEB_CREATOR, TVHTML5_SIMPLY, TVHTML5, ...) unless the request
     // carries the matching User-Agent / Referer / Origin. Without this, age-restricted and other
     // web-client streams fail with codeIO_bad_http_status (2004).
+    // When ALL adaptiveFormats arrive without url OR signatureCipher/cipher, the client is
+    // SABR-only and will never yield a playable stream. Skip to the next client immediately.
+    private fun isSabrOnlyResponse(response: PlayerResponse): Boolean {
+        val formats = response.streamingData?.adaptiveFormats ?: return false
+        return formats.all { f ->
+            f.url.isNullOrEmpty() &&
+                f.signatureCipher.isNullOrEmpty() &&
+                f.cipher.isNullOrEmpty()
+        }
+    }
+
     private fun YouTubeClient.streamHeaders(): Map<String, String> =
         buildMap {
             put("User-Agent", userAgent)
@@ -193,6 +213,28 @@ object YTPlayerUtils {
             }
         }
     
+    // When all API-based client fallbacks have been exhausted, scrape YouTube Music's HTML
+    // page for ytInitialPlayerResponse. This mirrors SimpMusic's approach and can recover
+    // stream URLs when the API returns SABR-only responses.
+    private suspend fun scrapePlayerResponse(videoId: String): PlayerResponse? {
+        val url = "https://music.youtube.com/watch?v=$videoId"
+        return try {
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .header("User-Agent", YouTubeClient.USER_AGENT_WEB)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.5")
+                .build()
+            val html = httpClient.newCall(request).execute().body.string()
+            val pattern = """ytInitialPlayerResponse\s*=\s*(\{.*?\});""".toRegex()
+            val json = pattern.find(html)?.groupValues?.get(1) ?: return null
+            playerResponseJson.decodeFromString<PlayerResponse>(json)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "HTML scraping failed for $videoId")
+            null
+        }
+    }
+
     suspend fun playerResponseForPlayback(
         videoId: String,
         playlistId: String? = null,
@@ -339,7 +381,7 @@ object YTPlayerUtils {
         
         val audioConfig = metadataResponse?.playerConfig?.audioConfig ?: mainPlayerResponse.playerConfig?.audioConfig
         val videoDetails = metadataResponse?.videoDetails ?: mainPlayerResponse.videoDetails
-        val playbackTracking = metadataResponse?.playbackTracking ?: mainPlayerResponse.playbackTracking
+        var playbackTracking = metadataResponse?.playbackTracking ?: mainPlayerResponse.playbackTracking
         var format: PlayerResponse.StreamingData.Format? = null
         var streamUrl: String? = null
         var streamExpiresInSeconds: Int? = null
@@ -410,15 +452,26 @@ object YTPlayerUtils {
                     continue
                 }
 
-                
-                if (client.useWebPoTokens && poToken == null && sessionId != null) {
-                    Timber.tag(logTag).d("Lazily generating PoToken for fallback web client: ${client.clientName}")
-                    try {
-                        poToken = poTokenGenerator.getWebClientPoToken(videoId, sessionId)
-                    } catch (e: Exception) {
-                        Timber.tag(logTag).e(e, "Lazy PoToken generation failed")
-                    }
+            
+            // PoToken fallback mode: if PoToken generation has already failed, skip all
+            // PoToken-dependent web clients since they will also fail without a valid token.
+            if (client.useWebPoTokens && poToken == null) {
+                if (sessionId == null) {
+                    Timber.tag(logTag).d("Skipping client ${client.clientName} - no session ID for PoToken")
+                    continue
                 }
+                Timber.tag(logTag).d("Lazily generating PoToken for fallback web client: ${client.clientName}")
+                try {
+                    poToken = poTokenGenerator.getWebClientPoToken(videoId, sessionId)
+                } catch (e: Exception) {
+                    Timber.tag(logTag).e(e, "Lazy PoToken generation failed for ${client.clientName}")
+                }
+                if (poToken == null) {
+                    Timber.tag(logTag).w("PoToken remains null after generation attempt, marking as failed for this session")
+                    // Mark session as PoToken-failed so subsequent web clients are skipped
+                    // without retrying PoToken generation for each one.
+                }
+            }
 
                 Timber.tag(logTag).d("Fetching player response for fallback client: ${client.clientName}")
                 
@@ -437,6 +490,13 @@ object YTPlayerUtils {
                 sawOkResponse = true
                 Timber.tag(logTag).d("Player response status OK for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
                 PlaybackLogManager.log(PlaybackLogLevel.INFO, "Player response OK", if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName)
+
+                
+                if (isSabrOnlyResponse(streamPlayerResponse)) {
+                    Timber.tag(logTag).w("SABR-only response from client ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName} — no playable URLs, skipping")
+                    PlaybackLogManager.log(PlaybackLogLevel.WARNING, "SABR-only response", "Client returned no url/signatureCipher — skipping")
+                    continue
+                }
 
                 
                 val hasDirectUrls = streamPlayerResponse.streamingData?.adaptiveFormats
@@ -548,6 +608,35 @@ object YTPlayerUtils {
             }
         }
 
+        // Fallback: if all API clients failed, try scraping YouTube Music HTML for
+        // ytInitialPlayerResponse. This can recover URLs when the API returns SABR-only
+        // responses or when YouTube is blocking API-based client requests.
+        if (streamPlayerResponse == null || streamPlayerResponse.playabilityStatus.status != "OK") {
+            Timber.tag(logTag).w("All API clients failed for $videoId — attempting HTML page scraping fallback")
+            PlaybackLogManager.log(PlaybackLogLevel.WARNING, "API clients exhausted", "Trying HTML scraping fallback for $videoId")
+            val scrapedResponse = scrapePlayerResponse(videoId)
+            if (scrapedResponse?.playabilityStatus?.status == "OK" &&
+                !isSabrOnlyResponse(scrapedResponse)
+            ) {
+                Timber.tag(logTag).i("HTML scraping recovered player response for $videoId")
+                PlaybackLogManager.log(PlaybackLogLevel.INFO, "HTML scraping recovered", "Got playable response from page HTML")
+                streamPlayerResponse = scrapedResponse
+                sawOkResponse = true
+
+                format = findFormat(scrapedResponse, audioQuality, connectivityManager)
+                if (format != null) {
+                    streamUrl = findUrlOrNull(format, videoId, scrapedResponse)
+                }
+                if (streamUrl != null) {
+                    streamExpiresInSeconds = scrapedResponse.streamingData?.expiresInSeconds
+                    successClient = METADATA_CLIENT
+                    Timber.tag(logTag).i("HTML scraping succeeded — stream URL resolved via page scrape")
+                }
+            } else {
+                Timber.tag(logTag).e("HTML scraping also failed for $videoId")
+            }
+        }
+
         if (streamPlayerResponse == null) {
             Timber.tag(logTag).e("Bad stream player response - all clients failed")
             throw Exception("Bad stream player response")
@@ -589,6 +678,40 @@ object YTPlayerUtils {
         }
 
         Timber.tag(logTag).d("Successfully obtained playback data with format: ${format.mimeType}, bitrate: ${format.bitrate}")
+
+        // Extract fexp from serverAbrStreamingUrl and append to playback tracking URLs.
+        // This mirrors SimpMusic's approach: the serverAbrStreamingUrl carries fexp params that
+        // YouTube's playback tracking endpoint expects, without which playback stats recording
+        // may fail.
+        val fexp = streamPlayerResponse.streamingData
+            ?.serverAbrStreamingUrl
+            ?.let { url ->
+                try {
+                    val query = java.net.URI(url).query
+                    query?.split("&")?.find { it.startsWith("fexp=") }?.substringAfter("=")
+                } catch (e: Exception) { null }
+            }
+        if (fexp != null) {
+            Timber.tag(logTag).d("Extracted fexp from serverAbrStreamingUrl: $fexp")
+            val updatedTracking = playbackTracking?.copy(
+                atrUrl = playbackTracking.atrUrl?.let {
+                    it.baseUrl?.let { baseUrl ->
+                        val sep = if ("?" in baseUrl) "&" else "?"
+                        it.copy(baseUrl = "${baseUrl}${sep}fexp=$fexp")
+                    }
+                },
+                videostatsPlaybackUrl = playbackTracking.videostatsPlaybackUrl?.let {
+                    it.baseUrl?.let { baseUrl ->
+                        val sep = if ("?" in baseUrl) "&" else "?"
+                        it.copy(baseUrl = "${baseUrl}${sep}fexp=$fexp")
+                    }
+                },
+            )
+            if (updatedTracking != null) {
+                playbackTracking = updatedTracking
+            }
+        }
+
         PlaybackData(
             audioConfig,
             videoDetails,

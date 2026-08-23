@@ -184,6 +184,7 @@ private fun NavController.navigateToPlaylistItem(playlist: PlaylistItem) {
 sealed class HomeSection(val id: String, val baseWeight: Int) {
     data object SpeedDial : HomeSection("speed_dial", 100)
     data object AiRecommendations : HomeSection("ai_recommendations", 95)
+    data object BrainSuggestions : HomeSection("brain_suggestions", 110)
     data object QuickPicks : HomeSection("quick_picks", 90)
     data object DailyDiscover : HomeSection("daily_discover", 80)
     data object KeepListening : HomeSection("keep_listening", 50)
@@ -578,6 +579,7 @@ fun HomeScreen(
 
     val quickPicks by viewModel.quickPicks.collectAsState()
     val aiRecommendedPlaylist by viewModel.aiRecommendedPlaylist.collectAsState()
+    val brainSuggestions by viewModel.brainSuggestions.collectAsState()
     val forgottenFavorites by viewModel.forgottenFavorites.collectAsState()
     val keepListening by viewModel.keepListening.collectAsState()
     val similarRecommendations by viewModel.similarRecommendations.collectAsState()
@@ -817,9 +819,12 @@ fun HomeScreen(
         similarRecommendations,
         homePage?.sections,
         explorePage?.moodAndGenres,
+        brainSuggestions,
         aiRecommendedPlaylist
     ) {
         val list = mutableListOf<HomeSection>()
+
+        if (brainSuggestions?.isNotEmpty() == true) list.add(HomeSection.BrainSuggestions)
 
         if (showSpeedDial && speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
         if (aiRecommendedPlaylist != null && aiRecommendedPlaylist!!.second.isNotEmpty()) list.add(HomeSection.AiRecommendations)
@@ -885,6 +890,7 @@ fun HomeScreen(
         } else {
             val defaultOrder = mapOf(
                 HomeSection.QuickPicks to 1000,
+                HomeSection.BrainSuggestions to 1200,
                 HomeSection.SpeedDial to 100,
                 HomeSection.FromTheCommunity to 80,
                 HomeSection.DailyDiscover to 70,
@@ -1160,6 +1166,27 @@ fun HomeScreen(
                                                     )
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        HomeSection.BrainSuggestions -> {
+                            brainSuggestions?.takeIf { it.isNotEmpty() }?.let { suggestions ->
+                                item(key = "brain_suggestions_title") {
+                                    NavigationTitle(
+                                        title = "Recommended for You",
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+                                item(key = "brain_suggestions_list") {
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.animateItem()
+                                    ) {
+                                        items(items = suggestions, key = { it.id }) { songObj ->
+                                            localGridItem(songObj)
                                         }
                                     }
                                 }

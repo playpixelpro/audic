@@ -8,12 +8,22 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicReference
 
 class PoTokenGenerator {
     private val TAG = "PoTokenGenerator"
 
     private val webViewSupported by lazy { runCatching { CookieManager.getInstance() }.isSuccess }
     private var webViewBadImpl = false 
+    private var poTokenFullyFailed = false
+
+    private val cachedPoTokenResult = AtomicReference<CachedResult?>()
+
+    private data class CachedResult(
+        val result: PoTokenResult,
+        val sessionId: String,
+        val cachedAtMs: Long,
+    )
 
     private val webPoTokenGenLock = Mutex()
     private var webPoTokenSessionId: String? = null
@@ -22,21 +32,42 @@ class PoTokenGenerator {
 
     fun getWebClientPoToken(videoId: String, sessionId: String): PoTokenResult? {
         Timber.tag(TAG).d("getWebClientPoToken called: videoId=$videoId, sessionId=$sessionId")
-        Timber.tag(TAG).d("WebView state: supported=$webViewSupported, badImpl=$webViewBadImpl")
-        if (!webViewSupported || webViewBadImpl) {
-            Timber.tag(TAG).d("WebView not available: supported=$webViewSupported, badImpl=$webViewBadImpl")
+        Timber.tag(TAG).d("WebView state: supported=$webViewSupported, badImpl=$webViewBadImpl, fullyFailed=$poTokenFullyFailed")
+
+        // If PoToken has permanently failed (e.g. WebView crash), return null immediately
+        // so callers skip PoToken-dependent clients without hanging or retrying.
+        if (!webViewSupported || webViewBadImpl || poTokenFullyFailed) {
+            Timber.tag(TAG).d("WebView not available: supported=$webViewSupported, badImpl=$webViewBadImpl, fullyFailed=$poTokenFullyFailed")
             return null
+        }
+
+        // Return cached PoToken for the same session within a reasonable window
+        val cached = cachedPoTokenResult.get()
+        if (cached != null && cached.sessionId == sessionId &&
+            System.currentTimeMillis() - cached.cachedAtMs < 30_000
+        ) {
+            Timber.tag(TAG).d("Returning cached PoToken for session ${sessionId.take(20)}...")
+            return cached.result
         }
 
         return try {
             Timber.tag(TAG).d("Calling runBlocking to generate poToken...")
-            runBlocking { getWebClientPoToken(videoId, sessionId, forceRecreate = false) }
+            val result = runBlocking { getWebClientPoToken(videoId, sessionId, forceRecreate = false) }
+            cachedPoTokenResult.set(CachedResult(result, sessionId, System.currentTimeMillis()))
+            result
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "poToken generation exception: ${e.javaClass.simpleName}: ${e.message}")
             when (e) {
                 is BadWebViewException -> {
                     Timber.tag(TAG).e(e, "Could not obtain poToken because WebView is broken")
                     webViewBadImpl = true
+                    poTokenFullyFailed = true
+                    null
+                }
+                is PoTokenException -> {
+                    Timber.tag(TAG).e(e, "PoToken generation timed out or failed")
+                    // Mark as fully failed so subsequent calls skip PoToken-dependent clients
+                    poTokenFullyFailed = true
                     null
                 }
                 else -> throw e 

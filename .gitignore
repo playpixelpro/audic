@@ -2,13 +2,13 @@
 .gradle/
 build/
 */build/
-!build/
-*/build/**
 
 # IDE
 .idea/
+.vscode/
 *.iml
 *.iws
+.kotlin/
 
 # Android
 local.properties
@@ -30,6 +30,17 @@ Desktop.ini
 *.aab
 *.ap_
 
+# Encoded keystore export (sensitive — base64 of your keystore)
+keystore.b64
+*.b64
+
+# Baseline profiles (generated build artifacts)
+**/release/baselineProfiles/
+**/baselineProfiles/**/*.dm
+
+# Output metadata (generated build artifacts)
+**/output-metadata.json
+
 # Native build
 .externalNativeBuild/
 .cxx/
@@ -39,13 +50,27 @@ Desktop.ini
 
 # Secrets (sensitive — never commit)
 secrets.properties
-**/assets/po_token.html
+
+# Compiled Kotlin/Native binaries
+applecanvas/bin/
+canvas/bin/
+unison/bin/
+
+# Generated config cache reports
+configuration-cache-report.html
+
+# Error/null files
+$null
 
 # Misc
 *.log
+*.err
 *.hprof
 captures/
 .claude
 CLAUDE.md
 .kilo/
 reference/
+audic_key
+reference2/
+remove_claude.sh

@@ -175,8 +175,8 @@ import com.audic.music.utils.CoilBitmapLoader
 import com.audic.music.ui.screens.settings.DiscordPresenceManager
 import com.audic.music.utils.NetworkConnectivityObserver
 import com.audic.music.utils.ScrobbleManager
-import com.music.audic.utils.lastfm.LastFM
-import com.music.audic.utils.lastfm.LibreFM
+import com.audic.music.utils.lastfm.LastFM
+import com.audic.music.utils.lastfm.LibreFM
 import com.audic.music.utils.SyncUtils
 import com.audic.music.utils.YTPlayerUtils
 import com.audic.music.utils.dataStore
@@ -186,6 +186,7 @@ import com.audic.music.widget.AudicMusicWidgetManager
 import com.audic.music.widget.MusicWidgetReceiver
 import dagger.hilt.android.AndroidEntryPoint
 import com.audic.music.utils.isLocalMediaId
+import com.audic.music.utils.ShareUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -588,7 +589,7 @@ class MusicService :
         }
         scope.launch {
             dataStore.data.map { it[LastFMSessionKey] }.distinctUntilChanged().collect { sessionKey ->
-                com.music.audic.utils.lastfm.LastFM.sessionKey = sessionKey
+                com.audic.music.utils.lastfm.LastFM.sessionKey = sessionKey
             }
         }
         scope.launch {
@@ -603,7 +604,7 @@ class MusicService :
         }
         scope.launch {
             dataStore.data.map { it[LibreFMSessionKey] }.distinctUntilChanged().collect { sessionKey ->
-                com.music.audic.utils.lastfm.LibreFM.sessionKey = sessionKey
+                com.audic.music.utils.lastfm.LibreFM.sessionKey = sessionKey
             }
         }
         scope.launch {
@@ -2870,11 +2871,11 @@ class MusicService :
         }
     }
 
-    private fun updateListenBrainz(title: String, artistNames: String, releaseName: String, durationMs: Long, isFinished: Boolean, startMs: Long = 0, endMs: Long = 0, positionMs: Long = 0) {
+    private fun updateListenBrainz(title: String, artistNames: String, releaseName: String, durationMs: Long, isFinished: Boolean, startMs: Long = 0, endMs: Long = 0, positionMs: Long = 0): Boolean {
         val cleanToken = listenBrainzToken.trim()
-        if (!listenBrainzEnabled || cleanToken.isBlank()) return
+        if (!listenBrainzEnabled || cleanToken.isBlank()) return false
         scope.launch {
-            if (isFinished) {
+            val success = if (isFinished) {
                 com.music.audic.ui.screens.settings.ListenBrainzManager.submitFinished(
                     context = this@MusicService,
                     token = cleanToken,
@@ -2896,7 +2897,11 @@ class MusicService :
                     positionMs = positionMs
                 )
             }
+            if (!success) {
+                Timber.tag(TAG).w("ListenBrainz submission failed for %s by %s (isFinished=%s)", title, artistNames, isFinished)
+            }
         }
+        return true
     }
 
     private fun currentPresenceSong(): Song? {
@@ -3457,15 +3462,7 @@ class MusicService :
     private fun shareSong() {
         val songData = currentSong.value
         val songId = songData?.song?.id ?: return
-
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "https://share.echomusic.fun/watch?v=$songId")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        startActivity(Intent.createChooser(shareIntent, null).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
+        ShareUtil.shareUrl(this, scope, "https://music.youtube.com/watch?v=$songId")
     }
 
     
@@ -4134,26 +4131,29 @@ class MusicService :
     }
 
     private fun checkAndSubmitListenBrainzFinished() {
-        listenBrainzCurrentMediaId?.let { mediaId ->
-            val startTs = listenBrainzCurrentStartTs
-            if (startTs > 0) {
-                scope.launch {
-                    val mediaMetadata = player.mediaItems.find { it.mediaId == mediaId }?.metadata
-                    val dbSong = if (mediaMetadata == null) database.song(mediaId).firstOrNull() else null
-                    
-                    val title = mediaMetadata?.title ?: dbSong?.song?.title ?: return@launch
-                    val artistNames = mediaMetadata?.artists?.joinToString(" & ") { it.name } 
-                        ?: dbSong?.artists?.joinToString(" & ") { it.name } ?: ""
-                    val releaseName = mediaMetadata?.album?.title ?: dbSong?.album?.title ?: ""
-                    val durationMs = mediaMetadata?.duration?.takeIf { it != -1 }?.times(1000L) 
-                        ?: dbSong?.song?.duration?.takeIf { it != -1 }?.times(1000L) ?: 0L
-
-                    updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = true, startMs = startTs, endMs = System.currentTimeMillis())
-                }
-            }
+        val mediaId = listenBrainzCurrentMediaId ?: return
+        val startTs = listenBrainzCurrentStartTs
+        if (startTs <= 0) {
+            listenBrainzCurrentStartTs = 0L
+            listenBrainzCurrentMediaId = null
+            return
         }
         listenBrainzCurrentStartTs = 0L
         listenBrainzCurrentMediaId = null
+        scope.launch {
+            val mediaMetadata = player.mediaItems.find { it.mediaId == mediaId }?.metadata
+            val dbSong = if (mediaMetadata == null) database.song(mediaId).firstOrNull() else null
+            
+            val title = mediaMetadata?.title ?: dbSong?.song?.title ?: return@launch
+            val artistNames = mediaMetadata?.artists?.joinToString(" & ") { it.name } 
+                ?: dbSong?.artists?.joinToString(" & ") { it.name } ?: ""
+            val releaseName = mediaMetadata?.album?.title ?: dbSong?.album?.title ?: ""
+            val durationMs = mediaMetadata?.duration?.takeIf { it != -1 }?.times(1000L) 
+                ?: dbSong?.song?.duration?.takeIf { it != -1 }?.times(1000L) ?: 0L
+
+            updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = true, startMs = startTs, endMs = System.currentTimeMillis())
+            Timber.tag(TAG).d("ListenBrainz finished submit: %s - %s", title, artistNames)
+        }
     }
 
     private fun checkAndSubmitListenBrainzPlayingNow(mediaId: String) {
@@ -4167,8 +4167,10 @@ class MusicService :
             val releaseName = mediaMetadata?.album?.title ?: dbSong?.album?.title ?: ""
             val durationMs = mediaMetadata?.duration?.takeIf { it != -1 }?.times(1000L) 
                 ?: dbSong?.song?.duration?.takeIf { it != -1 }?.times(1000L) ?: 0L
+            val positionMs = player.currentPosition.coerceAtLeast(0)
 
-            updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = false)
+            updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = false, positionMs = positionMs)
+            Timber.tag(TAG).d("ListenBrainz now playing submit: %s - %s", title, artistNames)
         }
     }
 }

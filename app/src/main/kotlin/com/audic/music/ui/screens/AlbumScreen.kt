@@ -99,6 +99,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.audic.music.utils.ShareUtil
 import com.audic.music.LocalDatabase
 import com.audic.music.LocalDownloadUtil
 import com.audic.music.LocalPlayerAwareWindowInsets
@@ -931,19 +932,7 @@ fun AlbumScreen(
                     ) {
                         IconButton(
                             onClick = {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(
-                                        android.content.Intent.EXTRA_TEXT,
-                                        "https://share.echomusic.fun/playlist?list=${albumWithSongs.album.playlistId}"
-                                    )
-                                }
-                                context.startActivity(
-                                    android.content.Intent.createChooser(
-                                        intent,
-                                        null
-                                    )
-                                )
+                                ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${albumWithSongs.album.playlistId}")
                             },
                             modifier = Modifier.size(40.dp)
                         ) {

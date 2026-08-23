@@ -64,6 +64,8 @@ import com.audic.music.audicmusic.changelog.ChangelogScreen
 import com.audic.music.audicmusic.commitscreen.CommitScreen
 import com.audic.music.ui.screens.equalizer.axion.AxionEqScreen
 import com.audic.music.ui.screens.ambient.AmbientModeScreen
+import com.audic.music.ui.screens.settings.LastFMSettingsScreen
+import com.audic.music.ui.screens.settings.LibreFMSettingsScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
@@ -389,7 +391,17 @@ fun NavGraphBuilder.navigationBuilder(
     ) { backStackEntry ->
         AiSettings(navController, scrollBehavior, highlightKey = backStackEntry.arguments?.getString("highlightKey"))
     }
-    
+
+    composable(
+        route = "settings/brain?highlightKey={highlightKey}",
+        arguments = listOf(navArgument("highlightKey") { type = NavType.StringType; nullable = true })
+    ) { backStackEntry ->
+        com.audic.music.brain.ui.BrainSettingsScreen(
+            navController, scrollBehavior,
+            highlightKey = backStackEntry.arguments?.getString("highlightKey")
+        )
+    }
+
     composable(
         route = "settings/player?highlightKey={highlightKey}",
         arguments = listOf(navArgument("highlightKey") { type = NavType.StringType; nullable = true })
@@ -440,7 +452,11 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings/lastfm") {
-        com.music.audic.ui.screens.settings.LastFMSettingsScreen(navController)
+        LastFMSettingsScreen(navController)
+    }
+
+    composable("settings/librefm") {
+        LibreFMSettingsScreen(navController)
     }
 
     composable("settings/librefm") {

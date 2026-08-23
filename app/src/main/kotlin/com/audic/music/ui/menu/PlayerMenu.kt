@@ -76,6 +76,7 @@ import com.audic.music.LocalDatabase
 import com.audic.music.LocalDownloadUtil
 import com.audic.music.LocalListenTogetherManager
 import com.audic.music.LocalPlayerConnection
+import com.audic.music.utils.ShareUtil
 import com.audic.music.R
 import com.audic.music.constants.EnableExportAsMp3Key
 import com.audic.music.constants.ExportDirectoryUriKey
@@ -340,15 +341,7 @@ fun PlayerMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
-                            val intent = android.content.Intent().apply {
-                                action = android.content.Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(
-                                    android.content.Intent.EXTRA_TEXT,
-                                    "https://share.echomusic.fun/watch?v=${mediaMetadata.id}"
-                                )
-                            }
-                            context.startActivity(android.content.Intent.createChooser(intent, null))
+                            ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/watch?v=${mediaMetadata.id}")
                             onDismiss()
                         }
                     )

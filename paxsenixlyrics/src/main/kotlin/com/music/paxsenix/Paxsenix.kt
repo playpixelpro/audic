@@ -1,6 +1,7 @@
 package com.music.paxsenix
 
 import android.content.Context
+import com.music.paxsenix.models.AppleMusicSearchResponse
 import com.music.paxsenix.models.LyricsResponse
 import com.music.paxsenix.models.SearchResponse
 import com.music.paxsenix.models.SearchResult
@@ -11,15 +12,19 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.util.Locale
@@ -29,6 +34,7 @@ object Paxsenix {
     @Volatile
     private var client: HttpClient? = null
     private var appVersion: String = "Unknown"
+    private val appleTokenManager = AppleTokenManager()
 
     fun init(context: Context) {
         if (client != null) return
@@ -48,8 +54,8 @@ object Paxsenix {
 
             client = HttpClient(CIO) {
                 install(HttpTimeout) {
-                    requestTimeoutMillis = 5_000
-                    connectTimeoutMillis = 4_000
+                    requestTimeoutMillis = 15_000
+                    connectTimeoutMillis = 10_000
                 }
                 install(ContentNegotiation) {
                     json(
@@ -62,7 +68,7 @@ object Paxsenix {
 
                 defaultRequest {
                     url("https://lyrics.paxsenix.org")
-                    header("User-Agent", "audicmusic/$appVersion")
+                    header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.3")
                 }
 
                 expectSuccess = true
@@ -111,16 +117,51 @@ object Paxsenix {
 
     private suspend fun search(query: String): List<SearchResult> = runCatching {
         Timber.d("Searching for: $query")
-        val response = httpClient.get("/apple-music/search") {
-            parameter("q", query)
-        }.body<SearchResponse>()
 
-        Timber.d("Search results count: ${response.size}")
-        response
-    }.getOrElse { e ->
-        Timber.e(e, "Search error: ${e.message}")
-        emptyList()
-    }
+        // Use Apple Music catalog API to bypass Cloudflare on lyrics.paxsenix.org/apple-music/search
+        val token = appleTokenManager.getToken()
+        val appleResponse = httpClient.get("https://amp-api.music.apple.com/v1/catalog/us/search") {
+            header("Authorization", "Bearer $token")
+            header("Origin", "https://music.apple.com")
+            header("Referer", "https://music.apple.com/")
+            header("Accept-Language", "en-US,en;q=0.9")
+            parameter("term", query)
+            parameter("types", "songs")
+            parameter("limit", "25")
+        }.body<AppleMusicSearchResponse>()
+
+        val results = mutableListOf<SearchResult>()
+        val songIds = appleResponse.results.songs?.data?.map { it.id } ?: emptyList()
+        if (songIds.isEmpty()) return@runCatching emptyList()
+
+        val resources = appleResponse.resources
+
+        songIds.forEach { id ->
+            val detail = resources?.songs?.get(id)
+            if (detail != null) {
+                results.add(
+                    SearchResult(
+                        id = id,
+                        trackName = detail.attributes.name,
+                        artistName = detail.attributes.artistName,
+                        albumName = detail.attributes.albumName,
+                        duration = detail.attributes.durationInMillis?.div(1000)?.toInt(),
+                        artwork = detail.attributes.artwork?.url
+                    )
+                )
+            }
+        }
+
+        Timber.d("Search results count: ${results.size}")
+        results
+    }.onFailure { e ->
+        if (e is ClientRequestException && e.response.status.value == 401) {
+            Timber.d("Token expired, clearing and retrying")
+            appleTokenManager.clearToken()
+        } else {
+            Timber.e(e, "Apple Music search error: ${e.message}")
+        }
+    }.getOrDefault(emptyList())
 
     suspend fun getLyrics(
         title: String,
@@ -401,6 +442,50 @@ object Paxsenix {
         } catch (e: Exception) {
             Timber.e(e, "TTML conversion failed: ${e.message}")
             ""
+        }
+    }
+
+    /**
+     * Manages Apple Music API tokens by scraping them from beta.music.apple.com's JS bundle.
+     * Tokens are cached until they expire (401 response).
+     */
+    private class AppleTokenManager {
+        private var cachedToken: String? = null
+        private val mutex = Mutex()
+
+        suspend fun getToken(): String = mutex.withLock {
+            cachedToken?.let { return it }
+
+            try {
+                val mainPageResponse = httpClient.get("https://beta.music.apple.com")
+                val mainPageBody = mainPageResponse.bodyAsText()
+
+                val indexJsRegex = Regex("""/assets/index~[^/]+\.js""")
+                val indexJsMatch = indexJsRegex.find(mainPageBody)
+                    ?: throw Exception("Could not find index JS URL")
+
+                val indexJsUri = indexJsMatch.value
+
+                val indexJsResponse = httpClient.get("https://beta.music.apple.com$indexJsUri")
+                val indexJsBody = indexJsResponse.bodyAsText()
+
+                val tokenRegex = Regex("""eyJ[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+""")
+                val tokenMatch = tokenRegex.find(indexJsBody)
+                    ?: throw Exception("Could not find token")
+
+                val token = tokenMatch.value
+                cachedToken = token
+                Timber.d("Fetched new Apple Music token")
+                return token
+            } catch (e: Exception) {
+                Timber.e(e, "Error fetching Apple Music token")
+                throw Exception("Error fetching Apple Music token: ${e.message}", e)
+            }
+        }
+
+        fun clearToken() {
+            cachedToken = null
+            Timber.d("Cleared cached Apple Music token")
         }
     }
 }

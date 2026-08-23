@@ -33,8 +33,8 @@ android {
         applicationId = "com.audic.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.0.8"
+        versionCode = 13
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -54,6 +54,9 @@ android {
         val librefmSecret = localProperties.getProperty("LIBREFM_SECRET") ?: System.getenv("LIBREFM_SECRET") ?: ""
         buildConfigField("String", "LIBREFM_API_KEY", "\"$librefmApiKey\"")
         buildConfigField("String", "LIBREFM_SECRET", "\"$librefmSecret\"")
+
+        val yourlsApiKey = localProperties.getProperty("YOURLS_API_KEY") ?: System.getenv("YOURLS_API_KEY") ?: ""
+        buildConfigField("String", "YOURLS_API_KEY", "\"$yourlsApiKey\"")
 
         buildConfigField("String", "FLOW_NEURO_BASE_URL", project.findProperty("FLOW_NEURO_BASE_URL")?.toString()?.let { "\"$it\"" } ?: "\"https://api.flowneuroengine.com\"")
         buildConfigField("String", "FLOW_NEURO_API_KEY", project.findProperty("FLOW_NEURO_API_KEY")?.toString()?.let { "\"$it\"" } ?: "\"\"")
@@ -116,22 +119,22 @@ android {
 
     signingConfigs {
         create("persistentDebug") {
-            storeFile = file("persistent-debug.keystore")
+            storeFile = project.file("persistent-debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
         create("release") {
-            storeFile = file("keystore/release.keystore")
+            storeFile = project.file("keystore/release.keystore")
             storePassword = System.getenv("STORE_PASSWORD") ?: "android"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "echorelease"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "audicrelease"
             keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
             storePassword = "android"
-            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+            storeFile = project.file("${System.getProperty("user.home")}/.android/debug.keystore")
         }
     }
 
@@ -181,7 +184,7 @@ android {
     }
 
     lint {
-        lintConfig = file("lint.xml")
+        lintConfig = project.file("lint.xml")
         warningsAsErrors = false
         abortOnError = false
         checkDependencies = false
@@ -191,25 +194,6 @@ android {
         generateLocaleConfig = true
     }
 
-afterEvaluate {
-    tasks.matching { it.name.startsWith("assemble") && it.name.endsWith("Release") }.configureEach {
-        doLast {
-            val versionName = android.defaultConfig.versionName
-            val buildDir = layout.buildDirectory.get().asFile
-            fileTree(buildDir).apply {
-                include("**/outputs/apk/**/*.apk")
-                exclude("**/*unsigned*", "**/*unaligned*")
-            }.forEach { apk ->
-                val parts = apk.parentFile.parent?.let { File(it) }?.name
-                val buildType = apk.parentFile.name
-                if (parts != null && buildType == "release") {
-                    val newName = "Audic-${versionName}-${parts}-${buildType}.apk"
-                    apk.renameTo(File(apk.parentFile, newName))
-                }
-            }
-        }
-    }
-}
 
     packaging {
         jniLibs {
@@ -223,6 +207,16 @@ afterEvaluate {
             excludes += "META-INF/INDEX.LIST"
             excludes += "META-INF/io.netty.versions.properties"
             excludes += "META-INF/DEPENDENCIES"
+        }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        val versionName = android.defaultConfig.versionName ?: "1.0.8"
+        val flavorName = variant.flavorName ?: ""
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("Audic-$versionName-$flavorName-release.apk")
         }
     }
 }
@@ -358,6 +352,8 @@ dependencies {
     // Protobuf for message serialization (lite version for Android)
     implementation(libs.protobuf.javalite)
     implementation(libs.protobuf.kotlin.lite)
+
+    
 
     coreLibraryDesugaring(libs.desugaring)
     implementation(libs.timber)
