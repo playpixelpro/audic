@@ -7,87 +7,51 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import timber.log.Timber
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 object ShortLinkManager {
-    private const val DOMAIN = "short.playpixelpro.com"
-    private const val TAG = "ShortLinkManager"
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build()
 
-    private val cache = ConcurrentHashMap<String, String>()
-    private val httpClient = OkHttpClient()
+    private const val API_ENDPOINT = "https://short.playpixelpro.com/yourls-api.php"
+    private val API_KEY = BuildConfig.YOURLS_API_KEY
 
-    suspend fun shorten(originalUrl: String): String {
-        cache[originalUrl]?.let { return it }
+    /**
+     * Shortens longUrl on every Share button click.
+     * Returns the shortened URL on success, or longUrl as safe fallback.
+     */
+    suspend fun shorten(longUrl: String): String = withContext(Dispatchers.IO) {
+        if (longUrl.isBlank()) return@withContext longUrl
+        try {
+            // POST form-data request
+            val form = FormBody.Builder()
+                .add("api_key", API_KEY)
+                .add("action", "shorturl")
+                .add("format", "json")
+                .add("url", longUrl)
+                .build()
 
-        val apiKey = BuildConfig.YOURLS_API_KEY
-        if (apiKey.isBlank()) {
-            Timber.tag(TAG).w("YOURLS API key not configured, returning original URL")
-            return originalUrl
-        }
+            val request = Request.Builder()
+                .url(API_ENDPOINT)
+                .post(form)
+                .build()
 
-        return withContext(Dispatchers.IO) {
-            try {
-                val form = FormBody.Builder()
-                    .add("api_key", apiKey)
-                    .add("action", "shorturl")
-                    .add("format", "json")
-                    .add("url", originalUrl)
-                    .build()
-
-                val request = Request.Builder()
-                    .url("https://$DOMAIN/yourls-api.php")
-                    .post(form)
-                    .build()
-
-                val response = httpClient.newCall(request).execute()
-                val code = response.code
-                val body = response.body?.string() ?: ""
-
-                if (!response.isSuccessful || body.isBlank()) {
-                    Timber.tag(TAG).w("YOURLS returned HTTP %d with empty/invalid body for: %s", code, originalUrl)
-
-                    // Retry with GET request (YOURLS also supports GET)
-                    try {
-                        val getUrl = "https://$DOMAIN/yourls-api.php?action=shorturl&format=json&api_key=$apiKey&url=$originalUrl"
-                        val getResponse = httpClient.newCall(Request.Builder().url(getUrl).get().build()).execute()
-                        val getBody = getResponse.body?.string() ?: ""
-                        if (getResponse.isSuccessful && getBody.isNotBlank()) {
-                            val getJson = JSONObject(getBody)
-                            val shortUrl = getJson.optString("shorturl", originalUrl)
-                            if (shortUrl != originalUrl) {
-                                cache[originalUrl] = shortUrl
-                                Timber.tag(TAG).d("Shortened via GET: %s -> %s", originalUrl, shortUrl)
-                                return@withContext shortUrl
-                            }
-                        }
-                        Timber.tag(TAG).w("YOURLS GET fallback also failed: HTTP %d", getResponse.code)
-                    } catch (e: Exception) {
-                        Timber.tag(TAG).e(e, "YOURLS GET fallback failed")
+            client.newCall(request).execute().use { response ->
+                val bodyString = response.body?.string() ?: ""
+                if (response.isSuccessful && bodyString.isNotEmpty()) {
+                    val json = JSONObject(bodyString)
+                    val shortUrl = json.optString("shorturl", "")
+                    if (shortUrl.isNotEmpty()) {
+                        return@withContext shortUrl
                     }
-
-                    return@withContext originalUrl
                 }
-
-                val json = JSONObject(body)
-                val shortUrl = json.optString("shorturl", originalUrl)
-
-                if (shortUrl != originalUrl) {
-                    cache[originalUrl] = shortUrl
-                    Timber.tag(TAG).d("Shortened: %s -> %s", originalUrl, shortUrl)
-                } else {
-                    Timber.tag(TAG).w("YOURLS returned no short URL for: %s", originalUrl)
-                }
-
-                shortUrl
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "YOURLS shorten failed")
-                originalUrl
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-    }
-
-    fun clearCache() {
-        cache.clear()
+        // Graceful fallback to original URL so sharing never breaks
+        longUrl
     }
 }
