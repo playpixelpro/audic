@@ -72,11 +72,11 @@ jobs:
             app/build/outputs/apk/universalFoss/release/*.apk
             app/build/outputs/apk/universalGms/release/*.apk
 
-      - name: Generate changelog.json from changelog.md
+      - name: Generate changelog.json from CHANGELOG.md
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "Extracting changelog for version: $VERSION"
-          awk -v ver="$VERSION" '/^## /{if(p){exit} if($0~"## "ver){p=1;next}} p' changelog.md > /tmp/changelog_items.txt
+          awk -v ver="$VERSION" '/^## /{if(p){exit} if($0~"## "ver){p=1;next}} p' CHANGELOG.md > /tmp/changelog_items.txt
           
           # Build JSON array from bullet points
           echo '{"changelog":[{"title":"","items":[' > /tmp/changelog.json

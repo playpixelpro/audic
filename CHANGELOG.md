@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1
+
+- New "Recommended for You" home section powered by on-device Audic Brain interest profiling
+- Fix po_token.html missing: BotGuard PoToken generation now works (WEB_REMIX loads faster)
+- Fix get_transcript 400 error: added YouTube Music session headers + WEB_REMIX client
+- Fix Paxsenix Cloudflare 403: switched to Apple Music catalog API search with auto-refreshing JWT tokens
+- Added AppleTokenManager for automatic Apple Music credential rotation
+- Fix .gitignore: track po_token.html as intentional asset, ignore build metadata and baseline profiles
+
 ## 1.0.9
 
 - Fix share dialog not opening on Android 14+: `startActivity` now called on main thread with `FLAG_ACTIVITY_NEW_TASK`
