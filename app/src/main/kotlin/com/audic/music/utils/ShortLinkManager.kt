@@ -39,7 +39,7 @@ object ShortLinkManager {
                 .build()
 
             client.newCall(request).execute().use { response ->
-                val bodyString = response.body?.string() ?: ""
+                val bodyString = response.body.string().orEmpty()
                 if (response.isSuccessful && bodyString.isNotEmpty()) {
                     val json = JSONObject(bodyString)
                     val shortUrl = json.optString("shorturl", "")
