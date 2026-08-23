@@ -2,8 +2,6 @@
 .gradle/
 build/
 */build/
-!build/
-*/build/**
 
 # IDE
 .idea/
@@ -37,8 +35,11 @@ keystore.b64
 *.b64
 
 # Baseline profiles (generated build artifacts)
-*/release/baselineProfiles/
-**/baselineProfiles/*.dm
+**/release/baselineProfiles/
+**/baselineProfiles/**/*.dm
+
+# Output metadata (generated build artifacts)
+**/output-metadata.json
 
 # Native build
 .externalNativeBuild/
@@ -49,7 +50,6 @@ keystore.b64
 
 # Secrets (sensitive — never commit)
 secrets.properties
-**/assets/po_token.html
 
 # Compiled Kotlin/Native binaries
 applecanvas/bin/
@@ -73,3 +73,4 @@ CLAUDE.md
 reference/
 audic_key
 reference2/
+remove_claude.sh
