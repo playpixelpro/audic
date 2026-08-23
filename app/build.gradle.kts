@@ -55,6 +55,9 @@ android {
         buildConfigField("String", "LIBREFM_API_KEY", "\"$librefmApiKey\"")
         buildConfigField("String", "LIBREFM_SECRET", "\"$librefmSecret\"")
 
+        val yourlsApiKey = localProperties.getProperty("YOURLS_API_KEY") ?: System.getenv("YOURLS_API_KEY") ?: ""
+        buildConfigField("String", "YOURLS_API_KEY", "\"$yourlsApiKey\"")
+
         buildConfigField("String", "FLOW_NEURO_BASE_URL", project.findProperty("FLOW_NEURO_BASE_URL")?.toString()?.let { "\"$it\"" } ?: "\"https://api.flowneuroengine.com\"")
         buildConfigField("String", "FLOW_NEURO_API_KEY", project.findProperty("FLOW_NEURO_API_KEY")?.toString()?.let { "\"$it\"" } ?: "\"\"")
 
@@ -350,8 +353,7 @@ dependencies {
     implementation(libs.protobuf.javalite)
     implementation(libs.protobuf.kotlin.lite)
 
-    // Short.io SDK for share link tracking
-    implementation("com.github.Short-io:android-sdk:v1.0.4")
+    
 
     coreLibraryDesugaring(libs.desugaring)
     implementation(libs.timber)

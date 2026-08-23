@@ -34,6 +34,7 @@ jobs:
           echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> local.properties
           echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" >> local.properties
           echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
+          echo "YOURLS_API_KEY=${{ secrets.YOURLS_API_KEY }}" >> local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -50,6 +51,7 @@ jobs:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          YOURLS_API_KEY: ${{ secrets.YOURLS_API_KEY }}
 
       - name: Build universal GMS release APK
         run: |
@@ -63,6 +65,7 @@ jobs:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          YOURLS_API_KEY: ${{ secrets.YOURLS_API_KEY }}
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
