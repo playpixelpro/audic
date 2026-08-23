@@ -41,7 +41,34 @@ object ShortLinkManager {
                     .build()
 
                 val response = httpClient.newCall(request).execute()
+                val code = response.code
                 val body = response.body?.string() ?: ""
+
+                if (!response.isSuccessful || body.isBlank()) {
+                    Timber.tag(TAG).w("YOURLS returned HTTP %d with empty/invalid body for: %s", code, originalUrl)
+
+                    // Retry with GET request (YOURLS also supports GET)
+                    try {
+                        val getUrl = "https://$DOMAIN/yourls-api.php?action=shorturl&format=json&api_key=$apiKey&url=$originalUrl"
+                        val getResponse = httpClient.newCall(Request.Builder().url(getUrl).get().build()).execute()
+                        val getBody = getResponse.body?.string() ?: ""
+                        if (getResponse.isSuccessful && getBody.isNotBlank()) {
+                            val getJson = JSONObject(getBody)
+                            val shortUrl = getJson.optString("shorturl", originalUrl)
+                            if (shortUrl != originalUrl) {
+                                cache[originalUrl] = shortUrl
+                                Timber.tag(TAG).d("Shortened via GET: %s -> %s", originalUrl, shortUrl)
+                                return@withContext shortUrl
+                            }
+                        }
+                        Timber.tag(TAG).w("YOURLS GET fallback also failed: HTTP %d", getResponse.code)
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).e(e, "YOURLS GET fallback failed")
+                    }
+
+                    return@withContext originalUrl
+                }
+
                 val json = JSONObject(body)
                 val shortUrl = json.optString("shorturl", originalUrl)
 
