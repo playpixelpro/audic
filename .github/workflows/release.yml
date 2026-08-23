@@ -72,6 +72,35 @@ jobs:
             app/build/outputs/apk/universalFoss/release/*.apk
             app/build/outputs/apk/universalGms/release/*.apk
 
+      - name: Generate changelog.json from changelog.md
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Extracting changelog for version: $VERSION"
+          awk -v ver="$VERSION" '/^## /{if(p){exit} if($0~"## "ver){p=1;next}} p' changelog.md > /tmp/changelog_items.txt
+          
+          # Build JSON array from bullet points
+          echo '{"changelog":[{"title":"","items":[' > /tmp/changelog.json
+          first=true
+          while IFS= read -r line; do
+            trimmed=$(echo "$line" | sed 's/^[[:space:]]*//')
+            if echo "$trimmed" | grep -q '^- '; then
+              item=$(echo "$trimmed" | sed 's/^- //' | sed 's/"/\\"/g')
+              if [ "$first" = true ]; then
+                printf '"%s"' "$item" >> /tmp/changelog.json
+                first=false
+              else
+                printf ',"%s"' "$item" >> /tmp/changelog.json
+              fi
+            fi
+          done < /tmp/changelog_items.txt
+          echo ']}]}' >> /tmp/changelog.json
+          
+          # Validate JSON
+          cat /tmp/changelog.json | python3 -m json.tool > /dev/null && echo "JSON valid" || echo "JSON invalid"
+          cp /tmp/changelog.json ./changelog.json
+          echo "Generated changelog.json:"
+          cat ./changelog.json
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
@@ -79,4 +108,5 @@ jobs:
           files: |
             app/build/outputs/apk/universalFoss/release/*.apk
             app/build/outputs/apk/universalGms/release/*.apk
+            changelog.json
           generate_release_notes: true
