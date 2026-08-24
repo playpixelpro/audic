@@ -57,7 +57,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.audic.music.LocalPlayerAwareWindowInsets
@@ -105,7 +104,7 @@ fun CommitScreen(
         hasError = false
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val url = URL("https://api.github.com/repos/dindoquitor/audic/commits?branch=main&per_page=50")
+                val url = URL("https://api.github.com/repos/playpixelpro/audic/commits?branch=main&per_page=50")
                 val json = url.openStream().bufferedReader().use { it.readText() }
                 val array = JSONArray(json)
                 val outputFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
@@ -130,10 +129,10 @@ fun CommitScreen(
 
                     
                     val authorLogin = if (!obj.isNull("author")) {
-                        obj.getJSONObject("author").optString("login", null)
+                        obj.getJSONObject("author").optString("login", "").takeIf { it.isNotEmpty() }
                     } else null
                     val authorAvatarUrl = if (!obj.isNull("author")) {
-                        obj.getJSONObject("author").optString("avatar_url", null)
+                        obj.getJSONObject("author").optString("avatar_url", "").takeIf { it.isNotEmpty() }
                     } else null
 
                     list.add(CommitData(sha, message, authorName, authorAvatarUrl, authorLogin, formattedDate, htmlUrl))
@@ -220,12 +219,10 @@ fun CommitScreen(
                             CommitItem(
                                 commit = commit,
                                 onClick = {
-                                    ContextCompat.startActivity(
-                                        context,
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(commit.htmlUrl)),
-                                        null
-                                    )
-                                }
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(commit.htmlUrl)),
+                                        )
+                                    }
                             )
                             if (index < commits.lastIndex) {
                                 HorizontalDivider(

@@ -14,7 +14,7 @@ This document provides instructions for setting up the Audic Music project for d
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/dindoquitor/audic.git
+git clone https://github.com/playpixelpro/audic.git
 cd audic
 ```
 

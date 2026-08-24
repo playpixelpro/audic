@@ -661,7 +661,7 @@ suspend fun checkForUpdate(
 ) {
     withContext(Dispatchers.IO) {
         try {
-            val url = URL("https://api.github.com/repos/dindoquitor/audic/releases/latest")
+            val url = URL("https://api.github.com/repos/playpixelpro/audic/releases/latest")
             val json = url.openStream().bufferedReader().use { it.readText() }
             val targetRelease = JSONObject(json)
             
@@ -681,7 +681,7 @@ suspend fun checkForUpdate(
                 var imageUrl: String? = null
                 try {
                     val changelogUrl =
-                        URL("https://github.com/dindoquitor/audic/releases/download/$tagWithPrefix/changelog.json")
+                        URL("https://github.com/playpixelpro/audic/releases/download/$tagWithPrefix/changelog.json")
                     val changelogJson = changelogUrl.openStream().bufferedReader().use { it.readText() }
                     val changelogData = JSONObject(changelogJson)
 

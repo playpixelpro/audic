@@ -4,11 +4,12 @@ package com.audic.music.listentogether
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -21,8 +22,9 @@ data class ListenTogetherServer(
 )
 
 object ListenTogetherServers {
-    private const val SERVER_JSON_URL = "https://raw.githubusercontent.com/dindoquitor/audic/refs/heads/main/app/server.json"
+    private const val SERVER_JSON_URL = "https://raw.githubusercontent.com/playpixelpro/audic/refs/heads/main/app/server.json"
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _servers = MutableStateFlow(emptyList<ListenTogetherServer>())
     
     val serversFlow: StateFlow<List<ListenTogetherServer>> = _servers
@@ -31,7 +33,7 @@ object ListenTogetherServers {
         get() = _servers.value
 
     init {
-        GlobalScope.launch(Dispatchers.IO) {
+        scope.launch {
             try {
                 val client = okhttp3.OkHttpClient()
                 val request = okhttp3.Request.Builder().url(SERVER_JSON_URL).build()

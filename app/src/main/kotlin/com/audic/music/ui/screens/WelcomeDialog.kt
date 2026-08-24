@@ -69,7 +69,7 @@ fun WelcomeDialog(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Button(
-                    onClick = { uriHandler.openUri("https://github.com/dindoquitor/audic") },
+                    onClick = { uriHandler.openUri("https://github.com/playpixelpro/audic") },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(

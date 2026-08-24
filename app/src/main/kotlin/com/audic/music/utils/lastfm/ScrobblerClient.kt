@@ -179,7 +179,7 @@ open class ScrobblerClient(
         sessionKey?.takeIf { it.isNotEmpty() } ?: throw LastFmException(9, "Not logged in")
 
     companion object {
-        const val USER_AGENT = "Audic Music (https://github.com/dindoquitor/audic)"
+        const val USER_AGENT = "Audic Music (https://github.com/playpixelpro/audic)"
 
         /** AudioScrobbler 2.0 api_sig: md5 over sorted `key+value` pairs, then the secret. */
         fun apiSig(params: Map<String, String>, secret: String): String {

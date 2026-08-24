@@ -122,8 +122,15 @@ highlightKey: String? = null) {
                     AboutActionRow(
                         icon = painterResource(R.drawable.github),
                         title = "GitHub",
-                        subtitle = "github.com/dindoquitor/audic",
-                        onClick = { uriHandler.openUri("https://github.com/dindoquitor/audic") },
+                        subtitle = "github.com/playpixelpro/audic",
+                        onClick = { uriHandler.openUri("https://github.com/playpixelpro/audic") },
+                    )
+                    AboutDivider()
+                    AboutActionRow(
+                        icon = painterResource(R.drawable.language),
+                        title = "Website",
+                        subtitle = "audic.playpixelpro.com",
+                        onClick = { uriHandler.openUri("https://audic.playpixelpro.com/") },
                     )
                     AboutDivider()
                     AboutActionRow(

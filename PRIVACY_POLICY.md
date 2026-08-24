@@ -119,9 +119,9 @@ We may update this Privacy Policy from time to time. We will notify you of any c
 
 If you have any questions about this Privacy Policy or our data practices, please contact us:
 
-- **GitHub**: [https://github.com/dindoquitor/audic](https://github.com/dindoquitor/audic)
-- **Issues**: [https://github.com/dindoquitor/audic/issues](https://github.com/dindoquitor/audic/issues)
-- **Discussions**: [https://github.com/dindoquitor/audic/discussions](https://github.com/dindoquitor/audic/discussions)
+- **GitHub**: [https://github.com/playpixelpro/audic](https://github.com/playpixelpro/audic)
+- **Issues**: [https://github.com/playpixelpro/audic/issues](https://github.com/playpixelpro/audic/issues)
+- **Discussions**: [https://github.com/playpixelpro/audic/discussions](https://github.com/playpixelpro/audic/discussions)
 
 ## Data Protection Compliance
 

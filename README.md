@@ -112,7 +112,7 @@ No subscriptions. No ads. Just pure music.
 
 Get the latest version of Audic Music:
 
-> **📱 [Download the Latest APK](https://github.com/dindoquitor/audic/releases)**
+> **📱 [Download the Latest APK](https://github.com/playpixelpro/audic/releases)**
 
 Just install the APK and you're ready to go — no account needed, no setup required.
 
@@ -120,7 +120,7 @@ Just install the APK and you're ready to go — no account needed, no setup requ
 <summary>🔧 Building from source (for developers)</summary>
 
 ```bash
-git clone https://github.com/dindoquitor/audic.git
+git clone https://github.com/playpixelpro/audic.git
 cd audic
 cp local.properties.template local.properties
 # Edit local.properties with your SDK path
