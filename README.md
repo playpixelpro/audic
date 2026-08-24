@@ -78,12 +78,12 @@ No subscriptions. No ads. Just pure music.
 | 🎨 **Lyric Animations** | Multiple styles, including word-by-word highlighting |
 
 ### 🔍 Music Discovery
-|  |  |
-|---|---|
-| 🎧 **Echo Find** | Tap to recognize any song playing around you — works like Shazam |
-| 🧠 **Echo Brain** | On-device AI learns your taste and auto-suggests tracks you'll love |
+|                                  |  |
+|----------------------------------|---|
+| 🎧 **Audic Find**                | Tap to recognize any song playing around you — works like Shazam |
+| 🧠 **Audic Brain**               | On-device AI learns your taste and auto-suggests tracks you'll love |
 | 🎵 **YouTube Music Integration** | Search, browse, and play from the world's largest music catalog |
-| 🧭 **Comprehensive Browsing** | Explore charts, moods, genres, and podcasts |
+| 🧭 **Comprehensive Browsing**    | Explore charts, moods, genres, and podcasts |
 
 ### 🎧 Smart & Social
 |  |  |
