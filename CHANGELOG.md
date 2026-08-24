@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2
+
+- Replace short.io SDK with direct YOURLS API for link shortening
+- Add YOURLS_API_KEY placeholder to local.properties.template
+- Fix YOURLS empty response: add HTTP status logging + GET fallback
+- Read YOURLS API key from BuildConfig instead of hardcoding
+- Fix compiler warning: remove unnecessary safe call on non-null ResponseBody
+- Add clear logging to ShortLinkManager for share verification
+- Update release workflow for better changelog generation
+
 ## 1.1.1
 
 - New "Recommended for You" home section powered by on-device Audic Brain interest profiling

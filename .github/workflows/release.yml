@@ -26,7 +26,7 @@ jobs:
       - name: Decode keystore
         run: |
           mkdir -p app/keystore
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore/release.keystore
+          printf '%s' "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore/release.keystore
 
       - name: Create local.properties
         run: |
