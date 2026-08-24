@@ -932,7 +932,7 @@ fun AlbumScreen(
                     ) {
                         IconButton(
                             onClick = {
-                                ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${albumWithSongs.album.playlistId}")
+                                ShareUtil.shareUrl(context, "https://music.youtube.com/playlist?list=${albumWithSongs.album.playlistId}")
                             },
                             modifier = Modifier.size(40.dp)
                         ) {

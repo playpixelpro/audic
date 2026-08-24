@@ -593,7 +593,7 @@ fun YouTubePlaylistMenu(
                                 )
                             },
                             onClick = {
-                                ShareUtil.shareUrl(context, coroutineScope, playlist.shareLink)
+                                ShareUtil.shareUrl(context, playlist.shareLink)
                                 onDismiss()
                             }
                         )

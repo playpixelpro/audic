@@ -3462,7 +3462,7 @@ class MusicService :
     private fun shareSong() {
         val songData = currentSong.value
         val songId = songData?.song?.id ?: return
-        ShareUtil.shareUrl(this, scope, "https://music.youtube.com/watch?v=$songId")
+        ShareUtil.shareUrl(this, "https://music.youtube.com/watch?v=$songId")
     }
 
     

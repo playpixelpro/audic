@@ -840,7 +840,7 @@ private fun OnlinePlaylistHeader(
                 
                 Surface(
                     onClick = {
-                        ShareUtil.shareUrl(context, coroutineScope, playlist.shareLink)
+                        ShareUtil.shareUrl(context, playlist.shareLink)
                     },
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant,

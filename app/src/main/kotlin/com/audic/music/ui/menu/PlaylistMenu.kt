@@ -368,7 +368,7 @@ fun PlaylistMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
-                            ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${dbPlaylist?.playlist?.browseId}")
+                            ShareUtil.shareUrl(context, "https://music.youtube.com/playlist?list=${dbPlaylist?.playlist?.browseId}")
                         }
                     )
                 ),
@@ -627,21 +627,20 @@ fun PlaylistMenu(
                                     isSyncComplete = false
                                     coroutineScope.launch(Dispatchers.IO) {
                                         try {
-                                            var browseId: String? = null
+                                            var browseId: String = ""
                                             var attempt = 0
                                             val maxAttempts = 3
                                             while (attempt < maxAttempts) {
                                                 try {
                                                     browseId = YouTube.createPlaylist(playlist.playlist.name)
-                                                    if (browseId != null) break
+                                                    break
                                                 } catch (e: Exception) {
                                                     attempt++
                                                     if (attempt >= maxAttempts) throw e
                                                     kotlinx.coroutines.delay(1000)
                                                 }
                                             }
-                                            if (browseId != null) {
-                                                database.query {
+                                            database.query {
                                                     update(playlist.playlist.copy(browseId = browseId))
                                                 }
                                                 var successCount = 0
@@ -673,7 +672,6 @@ fun PlaylistMenu(
                                                     }
                                                     isSyncComplete = true
                                                 }
-                                            }
                                         } catch (e: Exception) {
                                             kotlinx.coroutines.withContext(Dispatchers.Main) {
                                                 Toast.makeText(context, e.message ?: "Failed to sync", Toast.LENGTH_SHORT).show()
@@ -697,7 +695,7 @@ fun PlaylistMenu(
                                     )
                                 },
                                 onClick = {
-                                    ShareUtil.shareUrl(context, coroutineScope, shareLink)
+                                    ShareUtil.shareUrl(context, shareLink)
                                     onDismiss()
                                 }
                             )

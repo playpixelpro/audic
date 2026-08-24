@@ -201,7 +201,7 @@ fun ArtistMenu(
                                 text = stringResource(R.string.share),
                                 onClick = {
                                     onDismiss()
-                                    ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/channel/${artist.id}")
+                                    ShareUtil.shareUrl(context, "https://music.youtube.com/channel/${artist.id}")
                                 }
                             )
                         )

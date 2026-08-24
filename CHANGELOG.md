@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.0
+
+- **URL shortener**: Migrated from short.io SDK to direct YOURLS API via `audic.playpixelpro.com`
+- **Share reliability**: Fixed share intent not appearing after menu dismissal — now uses app-level coroutine scope that survives popup closure
+- **Server-side fix**: YOURLS endpoint hardened to skip remote title scraping, eliminating HTTP 500 on POST requests
+- **Lifecycle-safe scope**: `ShareUtil` no longer depends on composable `rememberCoroutineScope()` — uses `SupervisorJob` backed scope
+- **GET fallback**: Added GET query-parameter shortening as fallback when POST fails
+- **Cleanup**: Removed dead `share.echomusic.fun` host check; removed unused `RoomWarnings` import (reverted, it was needed); suppressed `@Incubating` & deprecation warnings in AGP config
+- **Playlist sync**: Fixed "condition is always true" warning in playlist sync retry loop — simplified null-safe `browseId` handling
+- **compileSdk**: Restored to 37 (Android API level) for compatibility with latest dependencies
+
 ## 1.1.2
 
 - Replace short.io SDK with direct YOURLS API for link shortening

@@ -341,7 +341,7 @@ fun PlayerMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
-                            ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/watch?v=${mediaMetadata.id}")
+                            ShareUtil.shareUrl(context, "https://music.youtube.com/watch?v=${mediaMetadata.id}")
                             onDismiss()
                         }
                     )

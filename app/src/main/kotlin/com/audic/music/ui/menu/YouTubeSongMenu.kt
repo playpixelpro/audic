@@ -315,7 +315,7 @@ fun YouTubeSongMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
-                            ShareUtil.shareUrl(context, coroutineScope, song.shareLink)
+                            ShareUtil.shareUrl(context, song.shareLink)
                             onDismiss()
                         }
                     )

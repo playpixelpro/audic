@@ -144,7 +144,7 @@ fun YouTubeArtistMenu(
                             },
                             text = stringResource(R.string.share),
                             onClick = {
-                                ShareUtil.shareUrl(context, coroutineScope, artist.shareLink)
+                                ShareUtil.shareUrl(context, artist.shareLink)
                                 onDismiss()
                             }
                         )

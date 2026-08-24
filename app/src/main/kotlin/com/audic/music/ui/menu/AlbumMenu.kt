@@ -364,7 +364,7 @@ fun AlbumMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
-                            ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${album.album.playlistId}")
+                            ShareUtil.shareUrl(context, "https://music.youtube.com/playlist?list=${album.album.playlistId}")
                         }
                     )
                 ),

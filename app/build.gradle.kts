@@ -1,3 +1,4 @@
+@file:Suppress("UnstableApiUsage", "DEPRECATION")
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 import java.net.URL
@@ -7,6 +8,7 @@ val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
+
 plugins {
     id("com.android.application")
     alias(libs.plugins.hilt)
@@ -32,9 +34,9 @@ android {
     defaultConfig {
         applicationId = "com.audic.music"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 14
-        versionName = "1.1.2"
+        targetSdk = 35
+        versionCode = 15
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

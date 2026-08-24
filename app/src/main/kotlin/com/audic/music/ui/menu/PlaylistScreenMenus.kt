@@ -197,7 +197,7 @@ fun LocalPlaylistMenu(
                 },
                 onClick = {
                     if (isYouTubePlaylist) {
-                        ShareUtil.shareUrl(context, coroutineScope, "https://music.youtube.com/playlist?list=${playlist.playlist.browseId}")
+                        ShareUtil.shareUrl(context, "https://music.youtube.com/playlist?list=${playlist.playlist.browseId}")
                     } else {
                         val shareText = songs.joinToString("\n") { it.song.song.title }
                         val sendIntent: Intent = Intent().apply {

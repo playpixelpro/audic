@@ -1101,7 +1101,7 @@ fun ArtistScreen(
             IconButton(
                 onClick = {
                     viewModel.artistPage?.artist?.shareLink?.let { link ->
-                        ShareUtil.shareUrl(context, coroutineScope, link)
+                        ShareUtil.shareUrl(context, link)
                     }
                 },
             ) {

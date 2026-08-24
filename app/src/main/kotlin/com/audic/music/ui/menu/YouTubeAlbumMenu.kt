@@ -332,7 +332,7 @@ fun YouTubeAlbumMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
-                            ShareUtil.shareUrl(context, coroutineScope, albumItem.shareLink)
+                            ShareUtil.shareUrl(context, albumItem.shareLink)
                         }
                     )
                 ),

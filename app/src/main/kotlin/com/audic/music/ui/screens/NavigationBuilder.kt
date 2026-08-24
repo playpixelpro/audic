@@ -459,10 +459,6 @@ fun NavGraphBuilder.navigationBuilder(
         LibreFMSettingsScreen(navController)
     }
 
-    composable("settings/librefm") {
-        com.music.audic.ui.screens.settings.LibreFMSettingsScreen(navController)
-    }
-
     composable("settings/discord/experimental") {
         com.music.audic.ui.screens.settings.DiscordExperimental(navController)
     }
