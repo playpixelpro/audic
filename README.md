@@ -45,7 +45,7 @@ No subscriptions. No ads. Just pure music.
     <tr>
       <td align="center"><strong>🔍 Explore</strong></td>
       <td align="center"><strong>📚 Library</strong></td>
-      <td align="center"><strong>🎧 Echo Find</strong></td>
+      <td align="center"><strong>🎧 Audic Find</strong></td>
     </tr>
     <tr>
       <td><img src="Screenshots/sc_4.png" width="200" style="border-radius: 12px;"/></td>
