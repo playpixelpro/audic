@@ -35,8 +35,8 @@ android {
         applicationId = "com.audic.music"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "2.0.2"
+        versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 16
+        versionName = project.findProperty("versionName")?.toString() ?: "2.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
