@@ -36,7 +36,8 @@ build_job:
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs=\"-Xmx4096M -XX:MaxMetaspaceSize=1024M\" -Dorg.gradle.daemon=false"
   script:
-    - ./gradlew :app:assembleUniversalFossRelease :app:assembleUniversalGmsRelease --stacktrace
+    - VERSION=$(echo $CI_COMMIT_TAG | sed 's/^v//')
+    - ./gradlew :app:assembleUniversalFossRelease :app:assembleUniversalGmsRelease -PversionName="$VERSION" --stacktrace
   artifacts:
     paths:
       - app/build/outputs/apk/**/*.apk
