@@ -857,14 +857,17 @@ fun HomeScreen(
                 val base = when (section) {
                     HomeSection.QuickPicks -> 10000
                     HomeSection.SpeedDial,
-                    HomeSection.DailyDiscover -> 500 
+                    HomeSection.DailyDiscover -> 500
+
+                    HomeSection.BrainSuggestions,
+                    HomeSection.AiRecommendations -> 250
 
                     HomeSection.KeepListening,
                     HomeSection.AccountPlaylists,
                     HomeSection.ForgottenFavorites,
-                    HomeSection.FromTheCommunity -> 300 
+                    HomeSection.FromTheCommunity -> 300
 
-                    else -> 100 
+                    else -> 100
                 }
 
                 val modifier = when (section) {
@@ -873,6 +876,9 @@ fun HomeScreen(
                     HomeSection.QuickPicks -> 0
                     HomeSection.SpeedDial,
                     HomeSection.DailyDiscover -> sectionRandom.nextInt(-200, 400)
+
+                    HomeSection.BrainSuggestions,
+                    HomeSection.AiRecommendations -> sectionRandom.nextInt(0, 200)
 
                     
                     

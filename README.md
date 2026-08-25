@@ -186,16 +186,30 @@ This software is provided **"AS IS"**, without warranty of any kind. Users are s
 
 ---
 
+## ☕ Support Audic Music
+
+If you enjoy using Audic Music, consider supporting the project! Your contributions help keep development active, cover server costs, and bring new features to life.
+
+<p align="center">
+  <a href="https://ko-fi.com/playpixelpro">
+    <img src="https://img.shields.io/badge/Ko--fi-Support%20Me%20with%20a%20Coffee-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Ko-fi" height="40"/>
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://buymeacoffee.com/playpixelpro">
+    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20My%20Work-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee" height="40"/>
+  </a>
+</p>
+
+<p align="center">
+  <sub>Every bit of support means the world — thank you! 🙏</sub>
+</p>
+
+---
+
 <div align="center">
   <p>Made with â¤ï¸ for music lovers everywhere</p>
   <p>Licensed under <a href="LICENSE">GPL-3.0</a></p>
   <br>
   <img src="assets/Audic-new.png" alt="Audic Music Logo" width="60"/>
 </div>
-
-
-
-
-
-
 

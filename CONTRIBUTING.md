@@ -66,7 +66,7 @@ We are committed to providing a welcoming and inspiring community for all. We pl
 2. Clone your fork locally:
    ```bash
    git clone https://github.com/playpixelpro/audic.git
-   cd Echo-Music
+   cd audic
    ```
 3. Add the upstream repository:
    ```bash
@@ -293,7 +293,7 @@ We provide issue templates for:
 ### Code Organization
 
 ```
-app/src/main/java/com/maxrave/echo/
+app/src/main/kotlin/com/audic/music/
 ├── ui/                    # UI components and screens
 │   ├── components/        # Reusable UI components
 │   ├── screens/          # Screen-specific UI
@@ -317,7 +317,7 @@ app/src/main/java/com/maxrave/echo/
 - **Functions**: camelCase (`playMusic()`)
 - **Variables**: camelCase (`currentSong`)
 - **Constants**: UPPER_SNAKE_CASE (`MAX_VOLUME`)
-- **Packages**: lowercase (`com.maxrave.echo.ui`)
+- **Packages**: lowercase (`com.audic.music`)
 
 ## Testing
 

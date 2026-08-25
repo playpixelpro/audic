@@ -139,6 +139,13 @@ highlightKey: String? = null) {
                         subtitle = "buymeacoffee.com/playpixelpro",
                         onClick = { uriHandler.openUri("https://buymeacoffee.com/playpixelpro") },
                     )
+                    AboutDivider()
+                    AboutActionRow(
+                        icon = painterResource(R.drawable.kofi_symbol),
+                        title = "Ko-fi",
+                        subtitle = "ko-fi.com/playpixelpro",
+                        onClick = { uriHandler.openUri("https://ko-fi.com/playpixelpro") },
+                    )
                 }
             }
 
