@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.4
+
+- **Homepage order fix**: Audic Brain "Recommended for You" and "Recommended by AI" sections now correctly appear above YouTube content when randomization is enabled. Previously they fell into a generic low-weight `else` branch (score 50–150); now explicitly weighted at **250–450**, placing them in the top third of the page.
+
 ## 2.0.0
 
 - **URL shortener**: Migrated from short.io SDK to direct YOURLS API via `audic.playpixelpro.com`
