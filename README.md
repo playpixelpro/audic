@@ -1,16 +1,16 @@
 ﻿<div align="center">
   <img src="assets/Audic-new.png" alt="Audic Music Logo" width="120"/>
 
-  <h1>ðŸŽµ Audic Music</h1>
+  <h1>🎵 Audic Music</h1>
 
-  <p><strong>Your music, your way â€” ad-free, beautifully crafted, and built for Android.</strong></p>
+  <p><strong>Your music, your way — ad-free, beautifully crafted, and built for Android.</strong></p>
 
   <p>
     <a href="#-features">
-      <img src="https://img.shields.io/badge/features-ðŸŽ¯-8A2BE2?style=flat-square" alt="Features"/>
+      <img src="https://img.shields.io/badge/features-🎯-8A2BE2?style=flat-square" alt="Features"/>
     </a>
     <a href="#-download">
-      <img src="https://img.shields.io/badge/download-ðŸ“¥-00C853?style=flat-square" alt="Download"/>
+      <img src="https://img.shields.io/badge/download-📥-00C853?style=flat-square" alt="Download"/>
     </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/license-GPLv3-blue?style=flat-square" alt="License"/>
@@ -20,22 +20,22 @@
 
 ---
 
-## âœ¨ Overview
+## ✨ Overview
 
-Audic Music is a **modern, ad-free music player for Android** that puts you in control. Stream millions of songs without interruptions, sing along with real-time synced lyrics, discover what's playing around you with a tap, and enjoy personalized AI-powered recommendations â€” all offline-friendly and privacy-respecting.
+Audic Music is a **modern, ad-free music player for Android** that puts you in control. Stream millions of songs without interruptions, sing along with real-time synced lyrics, discover what's playing around you with a tap, and enjoy personalized AI-powered recommendations — all offline-friendly and privacy-respecting.
 
 No subscriptions. No ads. Just pure music.
 
 ---
 
-## ðŸ“¸ Screenshots
+## 📸 Screenshots
 
 <div align="center">
   <table>
     <tr>
-      <td align="center"><strong>ðŸ  Home</strong></td>
-      <td align="center"><strong>â–¶ï¸ Player</strong></td>
-      <td align="center"><strong>ðŸŽ¤ Lyrics</strong></td>
+      <td align="center"><strong>🏠 Home</strong></td>
+      <td align="center"><strong>▶️ Player</strong></td>
+      <td align="center"><strong>🎤 Lyrics</strong></td>
     </tr>
     <tr>
       <td><img src="Screenshots/sc_1.png" width="200" style="border-radius: 12px;"/></td>
@@ -43,9 +43,9 @@ No subscriptions. No ads. Just pure music.
       <td><img src="Screenshots/sc_3.png" width="200" style="border-radius: 12px;"/></td>
     </tr>
     <tr>
-      <td align="center"><strong>ðŸ” Explore</strong></td>
-      <td align="center"><strong>ðŸ“š Library</strong></td>
-      <td align="center"><strong>ðŸŽ§ Audic Find</strong></td>
+      <td align="center"><strong>🔍 Explore</strong></td>
+      <td align="center"><strong>📚 Library</strong></td>
+      <td align="center"><strong>🎧 Audic Find</strong></td>
     </tr>
     <tr>
       <td><img src="Screenshots/sc_4.png" width="200" style="border-radius: 12px;"/></td>
@@ -57,67 +57,67 @@ No subscriptions. No ads. Just pure music.
 
 ---
 
-## ðŸŽ¯ Features
+## 🎯 Features
 
-### ðŸŽ¶ Music & Playback
+### 🎶 Music & Playback
 |  |  |
 |---|---|
-| ðŸš« **Zero Ads** | Listen endlessly â€” no interruptions, no subscriptions |
-| ðŸŽ¬ **Audio & Video** | Seamlessly switch between audio-only and music video mode |
-| ðŸŒ™ **Background Play** | Keep the music going while you use other apps or your screen is off |
-| ðŸ“¥ **Offline Downloads** | Save songs to your device and listen anywhere, even offline |
-| ðŸ“ **Local Files** | Play music stored directly on your phone |
-| âž° **Crossfade & Canvas** | Smooth track transitions with beautiful playing animations |
+| 🚫 **Zero Ads** | Listen endlessly — no interruptions, no subscriptions |
+| 🎬 **Audio & Video** | Seamlessly switch between audio-only and music video mode |
+| 🌙 **Background Play** | Keep the music going while you use other apps or your screen is off |
+| 📥 **Offline Downloads** | Save songs to your device and listen anywhere, even offline |
+| 📁 **Local Files** | Play music stored directly on your phone |
+| ➰ **Crossfade & Canvas** | Smooth track transitions with beautiful playing animations |
 
-### ðŸŽ¤ Lyrics Like Never Before
+### 🎤 Lyrics Like Never Before
 |  |  |
 |---|---|
-| â±ï¸ **Real-Time Synced Lyrics** | Every word in perfect timing â€” just like karaoke |
-| ðŸ“¡ **Lyrics+ Providers** | LrcLib, KuGou, Unison, YouTube captions & more for best coverage |
-| ðŸŒ **AI Translation** | Read lyrics translated into any language |
-| ðŸŽ¨ **Lyric Animations** | Multiple styles, including word-by-word highlighting |
+| ⏱️ **Real-Time Synced Lyrics** | Every word in perfect timing — just like karaoke |
+| 📡 **Lyrics+ Providers** | LrcLib, KuGou, Unison, YouTube captions & more for best coverage |
+| 🌍 **AI Translation** | Read lyrics translated into any language |
+| 🎨 **Lyric Animations** | Multiple styles, including word-by-word highlighting |
 
-### ðŸ” Music Discovery
+### 🔍 Music Discovery
 |                                  |  |
 |----------------------------------|---|
-| ðŸŽ§ **Audic Find**                | Tap to recognize any song playing around you â€” works like Shazam |
-| ðŸ§  **Audic Brain**               | On-device AI learns your taste and auto-suggests tracks you'll love |
-| ðŸŽµ **YouTube Music Integration** | Search, browse, and play from the world's largest music catalog |
-| ðŸ§­ **Comprehensive Browsing**    | Explore charts, moods, genres, and podcasts |
+| 🎧 **Audic Find**                | Tap to recognize any song playing around you — works like Shazam |
+| 🧠 **Audic Brain**               | On-device AI learns your taste and auto-suggests tracks you'll love |
+| 🎵 **YouTube Music Integration** | Search, browse, and play from the world's largest music catalog |
+| 🧭 **Comprehensive Browsing**    | Explore charts, moods, genres, and podcasts |
 
-### ðŸŽ§ Smart & Social
+### 🎧 Smart & Social
 |  |  |
 |---|---|
-| ðŸ‘¥ **Listen Together** | Sync playback with friends in real time â€” a private listening party |
-| ðŸ“‹ **Import from Spotify** | Bring your playlists and saved tracks over in seconds |
-| ðŸŒ **Smart Sharing** | Share songs as short, clean links for cross-platform listening |
-| ðŸ”” **Set as Ringtone** | Turn any song into your ringtone instantly |
+| 👥 **Listen Together** | Sync playback with friends in real time — a private listening party |
+| 📋 **Import from Spotify** | Bring your playlists and saved tracks over in seconds |
+| 🌐 **Smart Sharing** | Share songs as short, clean links for cross-platform listening |
+| 🔔 **Set as Ringtone** | Turn any song into your ringtone instantly |
 
-### ðŸ”— Integrations
+### 🔗 Integrations
 |  |  |
 |---|---|
-| ðŸ“» **Last.fm & Libre.fm** | Scrobble everything you play, sync your likes |
-| ðŸ§  **ListenBrainz** | Open-source scrobbling alternative |
-| ðŸ“£ **Cast to Devices** | Stream to speakers and Chromecast devices |
+| 📻 **Last.fm & Libre.fm** | Scrobble everything you play, sync your likes |
+| 🧠 **ListenBrainz** | Open-source scrobbling alternative |
+| 📣 **Cast to Devices** | Stream to speakers and Chromecast devices |
 
-### ðŸŽ¨ Make It Yours
+### 🎨 Make It Yours
 |  |  |
 |---|---|
-| ðŸŽ­ **Dynamic Themes** | Colors that adapt to your wallpaper (Material You) |
-| ðŸ“ **Density Controls** | Compact or spacious UI â€” entirely your call |
-| ðŸ–¼ï¸ **Mini Player Styles** | Classic, compact, or glass-like designs to choose from |
-| ðŸ”„ **High Refresh Rate** | Smooth 90/120Hz animations on supported displays |
+| 🎭 **Dynamic Themes** | Colors that adapt to your wallpaper (Material You) |
+| 📏 **Density Controls** | Compact or spacious UI — entirely your call |
+| 🖼️ **Mini Player Styles** | Classic, compact, or glass-like designs to choose from |
+| 🔄 **High Refresh Rate** | Smooth 90/120Hz animations on supported displays |
 
-## ðŸ“¥ Download
+## 📥 Download
 
 Get the latest version of Audic Music:
 
-> **ðŸ“± [Download the Latest APK](https://github.com/playpixelpro/audic/releases)**
+> **📱 [Download the Latest APK](https://github.com/playpixelpro/audic/releases)**
 
-Just install the APK and you're ready to go â€” no account needed, no setup required.
+Just install the APK and you're ready to go — no account needed, no setup required.
 
 <details>
-<summary>ðŸ”§ Building from source (for developers)</summary>
+<summary>🔧 Building from source (for developers)</summary>
 
 ```bash
 git clone https://github.com/playpixelpro/audic.git
@@ -132,7 +132,7 @@ For detailed build instructions, see [SETUP.md](SETUP.md).
 
 ---
 
-## ðŸ™ Special Thanks
+## 🙏 Special Thanks
 
 Audic Music is made possible by these amazing open-source projects:
 
@@ -207,7 +207,7 @@ If you enjoy using Audic Music, consider supporting the project! Your contributi
 ---
 
 <div align="center">
-  <p>Made with â¤ï¸ for music lovers everywhere</p>
+  <p>Made with ❤️ for music lovers everywhere</p>
   <p>Licensed under <a href="LICENSE">GPL-3.0</a></p>
   <br>
   <img src="assets/Audic-new.png" alt="Audic Music Logo" width="60"/>
