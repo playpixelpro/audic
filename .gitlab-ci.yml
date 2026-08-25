@@ -65,5 +65,7 @@ release_job:
     tag_name: '$CI_COMMIT_TAG'
     assets:
       links:
-        - name: 'APKs'
-          url: '${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/browse/app/build/outputs/apk/'
+        - name: 'FOSS APK (universal)'
+          url: '${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/app/build/outputs/apk/universalFoss/release/app-universalFoss-release.apk'
+        - name: 'GMS APK (universal)'
+          url: '${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/app/build/outputs/apk/universalGms/release/app-universalGms-release.apk'
