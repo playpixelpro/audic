@@ -5,7 +5,7 @@ stages:
 variables:
   ANDROID_SDK_TOOLS: "11076708"
   # Use a standard JDK 21 image
-  JAVA_IMAGE: "openjdk:21-slim"
+  JAVA_IMAGE: "eclipse-temurin:21-jdk-slim"
 
 # Cache gradle dependencies
 cache:
