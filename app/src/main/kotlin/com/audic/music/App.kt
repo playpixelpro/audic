@@ -78,6 +78,16 @@ class App : Application(), SingletonImageLoader.Factory {
         // Removed destructive database deletion to preserve user data
 
         
+        if (BuildConfig.CAST_AVAILABLE) {
+            try {
+                Class.forName("com.audic.music.utils.FirebaseReporter")
+                    .getMethod("initialize", Context::class.java)
+                    .invoke(null, applicationContext)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to initialize Firebase")
+            }
+        }
+
         CrashHandler.install(this)
 
         

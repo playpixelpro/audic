@@ -23,7 +23,10 @@ class CrashHandler private constructor(
         try {
             val crashLog = buildCrashLog(throwable)
             Timber.e(throwable, "App crashed")
-            
+
+            // Report the fatal crash to Crashlytics (GMS builds only). The report is
+            // persisted locally and uploaded on the next app launch.
+            reportException(throwable)
             
             val intent = Intent(applicationContext, CrashActivity::class.java).apply {
                 putExtra(EXTRA_CRASH_LOG, crashLog)

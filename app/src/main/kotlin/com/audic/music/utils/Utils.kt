@@ -9,9 +9,21 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 import androidx.compose.ui.graphics.Shape
+import com.audic.music.BuildConfig
+import timber.log.Timber
 import java.util.Locale
+
 fun reportException(throwable: Throwable) {
     throwable.printStackTrace()
+    if (BuildConfig.CAST_AVAILABLE) {
+        try {
+            Class.forName("com.audic.music.utils.FirebaseReporter")
+                .getMethod("recordException", Throwable::class.java)
+                .invoke(null, throwable)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to report exception to Crashlytics")
+        }
+    }
 }
 
 @Suppress("DEPRECATION")

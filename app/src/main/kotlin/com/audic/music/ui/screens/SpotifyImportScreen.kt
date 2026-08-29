@@ -4,6 +4,7 @@ package com.audic.music.ui.screens
 
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
@@ -351,6 +352,16 @@ private fun SpotifyLoginSheet(
                         cookieManager.setAcceptThirdPartyCookies(this, true)
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
+                        settings.databaseEnabled = true
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                        settings.javaScriptCanOpenWindowsAutomatically = true
+                        settings.setSupportMultipleWindows(false)
+                        settings.userAgentString = SPOTIFY_LOGIN_USER_AGENT_DESKTOP
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            settings.isAlgorithmicDarkeningAllowed = false
+                        }
                         settings.setSupportZoom(true)
                         settings.builtInZoomControls = true
                         settings.displayZoomControls = false
@@ -380,6 +391,11 @@ private fun SpotifyLoginSheet(
                             }
 
                             override fun onPageFinished(view: WebView, url: String?) {
+                                // Spotify changed the login page CSS so that <main> collapses to
+                                // ~48px around the actual form content, cropping it out and
+                                // leaving a blank screen. Re-apply the layout fix on every page
+                                // because each navigation within the login flow rebuilds the layout.
+                                applySpotifyLoginLayoutFix(view)
                                 captureCookies(url)
                             }
                         }
@@ -396,6 +412,55 @@ private fun SpotifyLoginSheet(
         }
     }
 }
+
+/**
+ * Undoes the collapsed height chain on Spotify's login page.
+ *
+ * Spotify recently changed the login page CSS: `<main>` is `position: absolute`,
+ * `overflow: auto` and only ~48px tall around ~729px of content, with `html`,
+ * `body` and the wrapper `div` all computing to 0px height. The form is fully
+ * rendered but cropped away, which leaves the screen looking blank even though
+ * the page finished loading.
+ *
+ * This injects a stylesheet that relaxes only heights/overflow (never repositions,
+ * hides or restyles anything) and uses element-name selectors so it survives
+ * Spotify's hashed class-name churn. If Spotify fixes the page, `height: auto`
+ * / `overflow: visible` are what it would compute anyway, so this becomes a no-op.
+ */
+private fun applySpotifyLoginLayoutFix(view: WebView) {
+    val js = """
+        (function () {
+          try {
+            var m = document.querySelector('main');
+            var id = 'audic-login-layout-fix';
+            if (!document.getElementById(id)) {
+              var st = document.createElement('style');
+              st.id = id;
+              st.textContent =
+                'html, body { height: auto !important; min-height: 100% !important; overflow: visible !important; }' +
+                'body > div { height: auto !important; min-height: 100% !important; }' +
+                'main { position: static !important; height: auto !important;' +
+                '       min-height: 100dvh !important; max-height: none !important;' +
+                '       overflow: visible !important; }';
+              document.head.appendChild(st);
+            }
+            var after = m ? getComputedStyle(m).height : '-';
+            return JSON.stringify({ mainAfter: after, applied: !!document.getElementById(id) });
+          } catch (e) {
+            return JSON.stringify({ probeError: String(e) });
+          }
+        })();
+    """.trimIndent()
+    view.evaluateJavascript(js, null)
+}
+
+/**
+ * Desktop Chrome User-Agent. Required by the social login providers — Facebook's
+ * mobile JS is incompatible with Android WebView, and Spotify's login page renders
+ * a more stable desktop layout.
+ */
+private const val SPOTIFY_LOGIN_USER_AGENT_DESKTOP =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 private fun readSpotifyCookies(
     cookieManager: CookieManager,
