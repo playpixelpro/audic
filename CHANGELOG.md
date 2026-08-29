@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.5
+
+- **Spotify login fix**: Spotify changed the CSS on their login page, collapsing the form and leaving a blank screen. Injected a layout fix (un-collapse `html`/`body`/`main` heights) plus a desktop user-agent and hardened WebView settings so the login form renders and `sp_dc` is captured correctly.
+- **Firebase Crashlytics (GMS only)**: Firebase now initializes on GMS builds and crashes/errors are reported to Crashlytics; FOSS builds remain unaffected.
+- **Dependency bump**: Android Gradle Plugin 9.3.1 → 9.3.2.
+- **Repo cleanup**: removed stale planning/docs files, added `guides/` to gitignore.
+
 ## 2.0.4
 
 - **Homepage order fix**: Audic Brain "Recommended for You" and "Recommended by AI" sections now correctly appear above YouTube content when randomization is enabled. Previously they fell into a generic low-weight `else` branch (score 50–150); now explicitly weighted at **250–450**, placing them in the top third of the page.
