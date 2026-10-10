@@ -24,6 +24,7 @@ fun isBluetoothHeadphoneConnected(context: Context): Boolean {
 }
 
 
+@Suppress("DEPRECATION")
 fun getConnectedBluetoothDeviceName(context: Context): String? {
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 

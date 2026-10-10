@@ -291,7 +291,6 @@ fun RecognitionScreen(
                                         }
                                     )
                                 }
-                                else -> Unit
                             }
                         }
                     }

@@ -14,12 +14,14 @@ import androidx.compose.ui.graphics.Paint
 import com.audic.music.ui.component.backdrop.RuntimeShader
 import com.audic.music.ui.component.backdrop.asAndroidRuntimeShader
 
+@Suppress("DEPRECATION")
 internal fun Paint.blur(radius: Float) {
     this.asFrameworkPaint().maskFilter =
         if (radius > 0f) BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL)
         else null
 }
 
+@Suppress("DEPRECATION")
 internal fun Paint.setRuntimeShader(runtimeShader: RuntimeShader?) {
     this.asFrameworkPaint().shader = runtimeShader?.asAndroidRuntimeShader()
 }

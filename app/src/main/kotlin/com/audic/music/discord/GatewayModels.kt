@@ -23,7 +23,7 @@ data class GatewayReadyEvent(
                     GatewayReadyUser(
                         id = userObj.getString("id"),
                         username = userObj.getString("username"),
-                        globalName = userObj.optString("global_name", null),
+                        globalName = if (userObj.isNull("global_name")) null else userObj.optString("global_name"),
                     ),
                 sessionId = obj.getString("session_id"),
                 resumeGatewayUrl = obj.getString("resume_gateway_url"),

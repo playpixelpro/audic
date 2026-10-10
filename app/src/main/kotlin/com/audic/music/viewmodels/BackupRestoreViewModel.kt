@@ -132,6 +132,10 @@ class BackupRestoreViewModel @Inject constructor(
                                 
                                 try {
                                     val dbPath = database.openHelper.writableDatabase.path
+                                    if (dbPath == null) {
+                                        Timber.tag("RESTORE").e("Database path unavailable; aborting restore")
+                                        return@withContext
+                                    }
                                     database.checkpoint()
                                     database.close()
                                     Timber.tag("RESTORE").i("Overwriting DB at path: $dbPath")
