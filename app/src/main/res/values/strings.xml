@@ -223,6 +223,8 @@
     <string name="error_no_internet">No network connection</string>
     <string name="error_timeout">Timeout</string>
     <string name="error_unknown">Unknown error</string>
+    <string name="error_stream_rejected">YouTube rejected this stream. Please try again in a moment.</string>
+    <string name="error_age_restricted">This app does not support playing age-restricted songs yet.</string>
 
     <!-- Player action -->
     <string name="action_like">Like</string>
@@ -357,6 +359,7 @@
     <string name="listen_together_smart_resync">Smart Network Resync</string>
     <string name="listen_together_smart_resync_desc">Automatically catch up with the host after a connection drop</string>
     <string name="spotify_import_title">Import From Spotify</string>
+    <string name="spotify_playlists">Spotify Playlists</string>
     <string name="spotify_import_desc">Connect Spotify, choose playlists, and mirror them into local Audic Music playlists.</string>
     <string name="spotify_connect">Connect Spotify</string>
     <string name="spotify_refresh">Refresh Spotify library</string>

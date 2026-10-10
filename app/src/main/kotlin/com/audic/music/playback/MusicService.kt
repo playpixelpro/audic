@@ -43,6 +43,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -170,7 +171,6 @@ import com.audic.music.playback.queues.Queue
 import com.audic.music.playback.queues.YouTubeQueue
 import com.audic.music.playback.queues.filterExplicit
 import com.audic.music.playback.queues.filterVideoSongs
-import com.audic.music.utils.BotDetectionMitigator
 import com.audic.music.utils.CoilBitmapLoader
 import com.audic.music.ui.screens.settings.DiscordPresenceManager
 import com.audic.music.utils.NetworkConnectivityObserver
@@ -231,6 +231,9 @@ private data class CachedStreamUrl(
     val expiresAt: Long,
     val headers: Map<String, String> = emptyMap(),
     val clientName: String = "unknown",
+    val clientKey: String = "unknown",
+    val requireBoundedRange: Boolean = false,
+    val rangeChunkSizeBytes: Long = 0L,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -484,6 +487,11 @@ class MusicService :
 
     @Volatile
     private var currentStreamClient: String = "unknown"
+
+    // The rejection identity ("clientId:clientVersion") of currentStreamClient, so recovery can
+    // blame the correct client even after the per-media cache entry has been cleared.
+    @Volatile
+    private var currentStreamClientKey: String = "unknown"
 
     
     private val bypassCacheForQualityChange = mutableSetOf<String>()
@@ -2372,6 +2380,27 @@ class MusicService :
         return isExpiredStreamResponseCode(responseCode)
     }
 
+    /**
+     * True when the error originated in stream *resolution* (YTPlayerUtils found no playable URL)
+     * rather than from the CDN rejecting an established stream. ExoPlayer reports our resolution
+     * [PlaybackException] as a SOURCE error with [PlaybackException.ERROR_CODE_IO_UNSPECIFIED], which
+     * would otherwise be misread as cache/stream corruption and permanently condemn a client.
+     */
+    private fun isResolutionFailure(error: PlaybackException): Boolean {
+        var cause: Throwable? = error
+        while (cause != null) {
+            val message = cause.message.orEmpty()
+            if (message.contains("No playable stream URL", ignoreCase = true)) return true
+            if (cause is PlaybackException &&
+                cause.errorCode == PlaybackException.ERROR_CODE_REMOTE_ERROR
+            ) {
+                return true
+            }
+            cause = cause.cause
+        }
+        return false
+    }
+
     
     private fun isRangeNotSatisfiableError(error: PlaybackException): Boolean {
         val responseCode = getHttpResponseCode(error)
@@ -2438,6 +2467,11 @@ class MusicService :
         }
 
         val mediaId = player.currentMediaItem?.mediaId
+        // Capture the client that served this item BEFORE performAggressiveCacheClear removes the
+        // songUrlCache entry — otherwise the blamed client is lost and rejection falls back to a
+        // bogus "unknown" key, so the retry re-selects the same 403-ing client. (Mirrors the
+        // reference Metrolist implementation.)
+        val failedClient = mediaId?.let { streamClientFor(it) }
         Timber.tag(TAG).w(error, "Player error occurred for $mediaId: errorCode=${error.errorCode}, message=${error.message}")
         val isFallbackError = error.message?.contains("fallback", ignoreCase = true) == true
         if (!isFallbackError) {
@@ -2459,6 +2493,15 @@ class MusicService :
 
         
         when {
+            // A resolution failure means no usable stream URL was obtained at all — this is NOT a
+            // CDN rejection of a specific client's stream. Treating it as one used to condemn an
+            // innocent client (via currentStreamClient) on every failed resolve, progressively
+            // poisoning the ladder until playback became impossible.
+            isResolutionFailure(error) -> {
+                Timber.tag(TAG).d("Stream resolution failure detected — not a CDN rejection, retrying on full ladder")
+                handleResolutionFailure(mediaId)
+                return
+            }
             isAudioRendererError(error) -> {
                 Timber.tag(TAG).d("AudioTrack error detected (${error.errorCode}), performing safe recovery")
                 handleAudioRendererError(mediaId)
@@ -2471,7 +2514,7 @@ class MusicService :
             }
             isCacheOrStreamCorruptionError(error) -> {
                 Timber.tag(TAG).d("Cache or stream corruption detected, clearing cache and refreshing URL")
-                handleExpiredUrlError(mediaId)
+                handleExpiredUrlError(mediaId, error, failedClient)
                 return
             }
             isPageReloadError(error) -> {
@@ -2481,7 +2524,7 @@ class MusicService :
             }
             isExpiredUrlError(error) -> {
                 Timber.tag(TAG).d("Expired URL (403) detected, refreshing stream URL")
-                handleExpiredUrlError(mediaId)
+                handleExpiredUrlError(mediaId, error, failedClient)
                 return
             }
 
@@ -2682,34 +2725,60 @@ class MusicService :
     }
 
     
+    // The stream client that served mediaId, read from the per-media cache entry so a concurrently
+    // preloaded song can't make us blame the wrong client (currentStreamClient is a shared global).
+    private fun streamClientFor(mediaId: String): Pair<String, String> {
+        val entry = runCatching {
+            songUrlCache.entries.firstOrNull { it.key.startsWith("${mediaId}_") }?.value
+        }.getOrNull()
+        return if (entry != null) entry.clientName to entry.clientKey
+        else currentStreamClient to currentStreamClientKey
+    }
+
     // Mirrors SmartTube's ErrorFixerController.applyNoPlaybackFix: the resolved stream was rejected
     // by the CDN, so record the failing client (so the next resolve rotates past it) and refresh the
-    // guest session / PoToken before re-fetching.
-    private fun markStreamClientRejected(mediaId: String) {
-        val clientName = currentStreamClient
-        YTPlayerUtils.markClientRejected(mediaId, clientName)
+    // cipher config. Session rotation is deliberately NOT done here: it is awaited inside
+    // YTPlayerUtils.playerResponseForPlayback where it cannot race the next resolve.
+    private fun markStreamClientRejected(mediaId: String, failedClient: Pair<String, String>?) {
+        val (clientName, clientKey) = failedClient ?: streamClientFor(mediaId)
+        YTPlayerUtils.markClientRejected(mediaId, clientKey)
         Timber.tag(TAG).w("Stream rejected by CDN for $mediaId (client=$clientName) — rotating stream client")
         scope.launch {
+            // A rejection can mean the cipher produced a wrong-but-non-throwing signature from a
+            // stale player config. If a (rate-limited) refresh corrects the table, the previously
+            // failed clients deserve another chance. (Mirrors Metrolist's refreshAfterStreamRejection
+            // -> clearStreamClientFailures behavior.)
             runCatching { com.audic.music.utils.cipher.CipherDeobfuscator.onStreamRejected() }
+                .onSuccess { changed ->
+                    if (changed) {
+                        Timber.tag(TAG).d("Player config changed after stream rejection: restoring stream clients")
+                        YTPlayerUtils.clearRejectedClients(mediaId)
+                    }
+                }
                 .onFailure { Timber.tag(TAG).w(it, "Cipher refresh on stream rejection failed") }
-        }
-        if (YouTube.cookie == null) {
-            scope.launch {
-                runCatching { BotDetectionMitigator.rotateGuestSession() }
-                    .onFailure { Timber.tag(TAG).w(it, "Guest session rotation failed") }
-            }
         }
     }
 
-    private fun handleExpiredUrlError(mediaId: String?) {
+    private fun handleExpiredUrlError(
+        mediaId: String?,
+        error: PlaybackException,
+        failedClient: Pair<String, String>?,
+    ) {
         if (mediaId == null) {
             handleFinalFailure()
             return
         }
 
-        // CDN rejected the resolved stream (403/410). Rotate to a different stream client and
-        // refresh the guest session/PoToken so the re-resolve doesn't return the same rejected URL.
-        markStreamClientRejected(mediaId)
+        // Only a genuine CDN rejection (403/410) proves the client that minted this stream is at
+        // fault. Corruption/parse/unspecified-IO errors must NOT permanently condemn a client for
+        // the 5-minute rejection TTL.
+        if (isExpiredUrlError(error)) {
+            // CDN rejected the resolved stream (403/410). Rotate to a different stream client so
+            // the re-resolve doesn't return the same rejected URL.
+            markStreamClientRejected(mediaId, failedClient)
+        } else {
+            Timber.tag(TAG).d("Non-403 stream error (code=${error.errorCode}) — not marking stream client rejected")
+        }
         incrementRetryCount(mediaId)
 
         
@@ -2743,7 +2812,8 @@ class MusicService :
             return
         }
 
-        markStreamClientRejected(mediaId)
+        // Generic IO errors (timeouts, DNS blips, transient 5xx) do not prove the stream client is
+        // bad, so we must not burn its rejection slot here.
         incrementRetryCount(mediaId)
 
         retryJob?.cancel()
@@ -2757,6 +2827,34 @@ class MusicService :
             player.prepare()
 
             Timber.tag(TAG).d("Retrying playback for $mediaId after generic IO error")
+        }
+    }
+
+    /**
+     * The DataSource could not resolve any playable stream URL. This is not a CDN rejection of the
+     * currently cached client's stream, so no client is blamed; instead the poisoned rejection map
+     * is cleared so the retry starts from the full ladder.
+     */
+    private fun handleResolutionFailure(mediaId: String?) {
+        if (mediaId == null) {
+            handleFinalFailure()
+            return
+        }
+
+        incrementRetryCount(mediaId)
+        YTPlayerUtils.clearRejectedClients(mediaId)
+        songUrlCache.keys.filter { it.startsWith("${mediaId}_") }.toList().forEach(songUrlCache::remove)
+
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            performAggressiveCacheClear(mediaId)
+
+            val currentPosition = player.currentPosition
+            val currentIndex = player.currentMediaItemIndex
+            player.seekTo(currentIndex, currentPosition)
+            player.prepare()
+
+            Timber.tag(TAG).d("Retrying playback for $mediaId after resolution failure")
         }
     }
 
@@ -2955,6 +3053,27 @@ class MusicService :
         }
     }
 
+    /**
+     * Applies a resolved stream URL + request headers to a [DataSpec], and — for clients whose CDN
+     * requires it (ANDROID_VR / IOS / TVHTML5_SIMPLY) — caps the read to a bounded range chunk.
+     * Adapted from InnerTubeX/Metrolist's `withResolvedStream`: an open-ended read of those URLs
+     * returns 403/416, so every open must carry a bounded `Range`.
+     */
+    private fun DataSpec.withResolvedStream(stream: CachedStreamUrl): DataSpec {
+        val resolved = buildUpon()
+            .setUri(stream.url.toUri())
+            .setHttpRequestHeaders(httpRequestHeaders + stream.headers)
+            .build()
+        if (!stream.requireBoundedRange || stream.rangeChunkSizeBytes <= 0L) return resolved
+        val boundedLength =
+            if (length == C.LENGTH_UNSET.toLong()) {
+                stream.rangeChunkSizeBytes
+            } else {
+                minOf(length, stream.rangeChunkSizeBytes)
+            }
+        return resolved.subrange(0, boundedLength)
+    }
+
     private fun createDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(
             DefaultDataSource.Factory(this, createCacheDataSource())
@@ -3013,8 +3132,8 @@ class MusicService :
                     songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let {
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                         currentStreamClient = it.clientName
-                        return@Factory dataSpec.buildUpon().setUri(it.url.toUri())
-                            .setHttpRequestHeaders(dataSpec.httpRequestHeaders + it.headers).build()
+                        currentStreamClientKey = it.clientKey
+                        return@Factory dataSpec.withResolvedStream(it)
                     }
                     // Fall through to fetch real URL since it's only partially downloaded
                 }
@@ -3023,8 +3142,8 @@ class MusicService :
                     songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let {
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                         currentStreamClient = it.clientName
-                        return@Factory dataSpec.buildUpon().setUri(it.url.toUri())
-                            .setHttpRequestHeaders(dataSpec.httpRequestHeaders + it.headers).build()
+                        currentStreamClientKey = it.clientKey
+                        return@Factory dataSpec.withResolvedStream(it)
                     }
                     Timber.tag(TAG).w("Ghost cache entry for $mediaId, re-fetching")
                     playerCache.removeResource(mediaId)
@@ -3033,8 +3152,8 @@ class MusicService :
                 songUrlCache["${mediaId}_${lockedQuality.name}"]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let {
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                         currentStreamClient = it.clientName
-                        return@Factory dataSpec.buildUpon().setUri(it.url.toUri())
-                            .setHttpRequestHeaders(dataSpec.httpRequestHeaders + it.headers).build()
+                        currentStreamClientKey = it.clientKey
+                        return@Factory dataSpec.withResolvedStream(it)
                 }
             } else {
                 Timber.tag("MusicService").i("BYPASSING CACHE for $mediaId due to quality change")
@@ -3162,17 +3281,21 @@ class MusicService :
                 val streamUrl = nonNullPlayback.streamUrl
                 val streamHeaders = nonNullPlayback.streamHeaders
                 currentStreamClient = nonNullPlayback.streamClient
+                currentStreamClientKey = nonNullPlayback.streamClientKey
 
-                songUrlCache["${mediaId}_${lockedQuality.name}"] =
-                    CachedStreamUrl(
-                        streamUrl,
-                        System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L),
-                        streamHeaders,
-                        nonNullPlayback.streamClient,
-                    )
-                
-                return@Factory dataSpec.buildUpon().setKey(targetCacheKey).setUri(streamUrl.toUri())
-                    .setHttpRequestHeaders(dataSpec.httpRequestHeaders + streamHeaders).build()
+                val cachedStream = CachedStreamUrl(
+                    streamUrl,
+                    System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L),
+                    streamHeaders,
+                    nonNullPlayback.streamClient,
+                    nonNullPlayback.streamClientKey,
+                    nonNullPlayback.requireBoundedRange,
+                    nonNullPlayback.rangeChunkSizeBytes,
+                )
+                songUrlCache["${mediaId}_${lockedQuality.name}"] = cachedStream
+
+                return@Factory dataSpec.withResolvedStream(cachedStream).buildUpon()
+                    .setKey(targetCacheKey).build()
             }
         }
     }
@@ -4097,6 +4220,9 @@ class MusicService :
                                 System.currentTimeMillis() + 1000 * 60 * 60,
                                 preloaded.streamHeaders,
                                 preloaded.streamClient,
+                                preloaded.streamClientKey,
+                                preloaded.requireBoundedRange,
+                                preloaded.rangeChunkSizeBytes,
                             )
                             Timber.tag(TAG).d("Preloaded stream for $mediaId")
                         }
