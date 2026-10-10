@@ -3,6 +3,7 @@ package com.audic.music.utils.cipher
 import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
+import com.audic.music.utils.sabr.EjsCipherSolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -114,34 +115,53 @@ object CipherDeobfuscator {
      *
      * Returns the full URL with deobfuscated signature, or null if failed.
      */
-    suspend fun deobfuscateStreamUrl(signatureCipher: String, videoId: String): String? = deobfuscateMutex.withLock {
-        try {
-            deobfuscateInternal(signatureCipher, videoId, isRetry = false)
-                ?.also { rendererRecoveryPolicy.onSuccess() }
-        } catch (e: CancellationException) {
-            throw e // request superseded/cancelled — propagate, don't treat as a decipher failure
-        } catch (e: CipherRendererGoneException) {
-            // Renderer died (OOM kill) — a fresh-JS retry would just re-parse ~2.8 MB under the
-            // same memory pressure. Fail fast so playback falls through to the other paths.
-            onRendererGone(e, "deobfuscate")
-            null
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Cipher deobfuscation failed, retrying with fresh JS: ${e.message}")
+    suspend fun deobfuscateStreamUrl(signatureCipher: String, videoId: String): String? {
+        val webViewResult = deobfuscateMutex.withLock {
             try {
-                PlayerJsFetcher.invalidateCache()
-                closeWebView()
-                deobfuscateInternal(signatureCipher, videoId, isRetry = true)
+                deobfuscateInternal(signatureCipher, videoId, isRetry = false)
                     ?.also { rendererRecoveryPolicy.onSuccess() }
-            } catch (retryE: CancellationException) {
-                throw retryE
-            } catch (retryE: CipherRendererGoneException) {
-                onRendererGone(retryE, "deobfuscate-retry")
+            } catch (e: CancellationException) {
+                throw e // request superseded/cancelled — propagate, don't treat as a decipher failure
+            } catch (e: CipherRendererGoneException) {
+                // Renderer died (OOM kill) — a fresh-JS retry would just re-parse ~2.8 MB under the
+                // same memory pressure. Fail fast so playback falls through to the other paths.
+                onRendererGone(e, "deobfuscate")
                 null
-            } catch (retryE: Exception) {
-                Timber.tag(TAG).e(retryE, "Cipher deobfuscation retry also failed: ${retryE.message}")
-                null
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Cipher deobfuscation failed, retrying with fresh JS: ${e.message}")
+                try {
+                    PlayerJsFetcher.invalidateCache()
+                    closeWebView()
+                    deobfuscateInternal(signatureCipher, videoId, isRetry = true)
+                        ?.also { rendererRecoveryPolicy.onSuccess() }
+                } catch (retryE: CancellationException) {
+                    throw retryE
+                } catch (retryE: CipherRendererGoneException) {
+                    onRendererGone(retryE, "deobfuscate-retry")
+                    null
+                } catch (retryE: Exception) {
+                    Timber.tag(TAG).e(retryE, "Cipher deobfuscation retry also failed: ${retryE.message}")
+                    null
+                }
             }
         }
+        if (webViewResult != null) return webViewResult
+
+        // Fallback: the EJS solver (independent of the primary cipher WebView) preprocesses
+        // player.js and exposes the signature function, so it can still recover the URL when the
+        // WebView path produced nothing (renderer death, stale/wrong extracted function, etc.).
+        return deobfuscateWithEjs(signatureCipher, videoId)
+    }
+
+    private suspend fun deobfuscateWithEjs(signatureCipher: String, videoId: String): String? {
+        val params = parseQueryParams(signatureCipher)
+        val obfuscatedSig = params["s"] ?: return null
+        val baseUrl = params["url"] ?: return null
+        val sigParam = params["sp"] ?: "signature"
+        val deobfuscatedSig = EjsCipherSolver.transformSignatureValue(obfuscatedSig) ?: return null
+        Timber.tag(TAG).d("EJS cipher fallback succeeded for $videoId")
+        val separator = if ("?" in baseUrl) "&" else "?"
+        return "$baseUrl${separator}${sigParam}=${Uri.encode(deobfuscatedSig)}"
     }
 
     /**

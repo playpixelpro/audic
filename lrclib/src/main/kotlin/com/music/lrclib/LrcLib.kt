@@ -10,7 +10,9 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -18,6 +20,10 @@ import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
 object LrcLib {
+    // lrclib.net sits behind Cloudflare, which rejects the default `okhttp/*`
+    // User-Agent with HTTP 520. It also asks clients to identify themselves.
+    private const val USER_AGENT = "AudicMusic/2.0.6"
+
     private val client by lazy {
         HttpClient(CIO) {
             install(ContentNegotiation) {
@@ -37,6 +43,8 @@ object LrcLib {
 
             defaultRequest {
                 url("https://lrclib.net")
+                header(HttpHeaders.UserAgent, USER_AGENT)
+                header(HttpHeaders.Accept, "application/json")
             }
 
             expectSuccess = true

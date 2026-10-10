@@ -148,11 +148,13 @@ import com.audic.music.ui.component.shimmer.ShimmerHost
 import com.audic.music.ui.component.shimmer.TextPlaceholder
 import com.audic.music.ui.component.SongGridItem
 import com.audic.music.ui.component.SongListItem
+import com.audic.music.ui.component.PlaylistGridItem
 import com.audic.music.ui.component.SpeedDialGridItem
 import com.audic.music.ui.component.YouTubeGridItem
 import com.audic.music.ui.component.YouTubeListItem
 import com.audic.music.ui.menu.AlbumMenu
 import com.audic.music.ui.menu.ArtistMenu
+import com.audic.music.ui.menu.PlaylistMenu
 import com.audic.music.ui.menu.SongMenu
 import com.audic.music.ui.menu.YouTubeAlbumMenu
 import com.audic.music.ui.menu.YouTubeArtistMenu
@@ -189,6 +191,7 @@ sealed class HomeSection(val id: String, val baseWeight: Int) {
     data object DailyDiscover : HomeSection("daily_discover", 80)
     data object KeepListening : HomeSection("keep_listening", 50)
     data object AccountPlaylists : HomeSection("account_playlists", 40)
+    data object SpotifyPlaylists : HomeSection("spotify_playlists", 45)
     data object ForgottenFavorites : HomeSection("forgotten_favorites", 30)
     data object FromTheCommunity : HomeSection("from_the_community", 20)
     data class SimilarRecommendation(val index: Int) : HomeSection("similar_recommendation_$index", 10)
@@ -584,6 +587,7 @@ fun HomeScreen(
     val keepListening by viewModel.keepListening.collectAsState()
     val similarRecommendations by viewModel.similarRecommendations.collectAsState()
     val accountPlaylists by viewModel.accountPlaylists.collectAsState()
+    val spotifyPlaylists by viewModel.spotifyPlaylists.collectAsState()
     val homePage by viewModel.homePage.collectAsState()
     val explorePage by viewModel.explorePage.collectAsState()
     val dailyDiscover by viewModel.dailyDiscover.collectAsState()
@@ -814,6 +818,7 @@ fun HomeScreen(
         dailyDiscover,
         keepListening,
         accountPlaylists,
+        spotifyPlaylists,
         forgottenFavorites,
         communityPlaylists,
         similarRecommendations,
@@ -833,6 +838,7 @@ fun HomeScreen(
         if (dailyDiscover?.isNotEmpty() == true) list.add(HomeSection.DailyDiscover)
         if (keepListening?.isNotEmpty() == true) list.add(HomeSection.KeepListening)
         if (accountPlaylists?.isNotEmpty() == true) list.add(HomeSection.AccountPlaylists)
+        if (spotifyPlaylists?.isNotEmpty() == true) list.add(HomeSection.SpotifyPlaylists)
         if (forgottenFavorites?.isNotEmpty() == true) list.add(HomeSection.ForgottenFavorites)
 
         similarRecommendations?.indices?.forEach { i ->
@@ -864,6 +870,7 @@ fun HomeScreen(
 
                     HomeSection.KeepListening,
                     HomeSection.AccountPlaylists,
+                    HomeSection.SpotifyPlaylists,
                     HomeSection.ForgottenFavorites,
                     HomeSection.FromTheCommunity -> 300
 
@@ -885,6 +892,7 @@ fun HomeScreen(
                     
                     HomeSection.KeepListening,
                     HomeSection.AccountPlaylists,
+                    HomeSection.SpotifyPlaylists,
                     HomeSection.ForgottenFavorites,
                     HomeSection.FromTheCommunity -> sectionRandom.nextInt(-100, 400)
 
@@ -902,6 +910,7 @@ fun HomeScreen(
                 HomeSection.DailyDiscover to 70,
                 HomeSection.KeepListening to 60,
                 HomeSection.AccountPlaylists to 50,
+                HomeSection.SpotifyPlaylists to 45,
                 HomeSection.ForgottenFavorites to 40,
                 HomeSection.MoodAndGenres to 10
             )
@@ -1526,6 +1535,52 @@ fun HomeScreen(
                                             key = { it.id },
                                         ) { item ->
                                             ytGridItem(item)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        HomeSection.SpotifyPlaylists -> {
+                            spotifyPlaylists?.takeIf { it.isNotEmpty() }?.let { spotifyPlaylists ->
+                                item(key = "spotify_playlists_title") {
+                                    NavigationTitle(
+                                        title = stringResource(R.string.spotify_playlists),
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+
+                                item(key = "spotify_playlists_list") {
+                                    LazyRow(
+                                        contentPadding = WindowInsets.systemBars
+                                            .only(WindowInsetsSides.Horizontal)
+                                            .asPaddingValues(),
+                                        modifier = Modifier.animateItem()
+                                    ) {
+                                        items(spotifyPlaylists, key = { it.playlist.id }) { playlist ->
+                                            PlaylistGridItem(
+                                                playlist = playlist,
+                                                modifier = Modifier
+                                                    .combinedClickable(
+                                                        onClick = {
+                                                            if (!playlist.playlist.isEditable && playlist.songCount == 0 && playlist.playlist.remoteSongCount != 0)
+                                                                navController.navigate("online_playlist/${playlist.playlist.browseId}")
+                                                            else
+                                                                navController.navigate("local_playlist/${playlist.id}")
+                                                        },
+                                                        onLongClick = {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            menuState.show {
+                                                                if (playlist.playlist.isEditable || playlist.songCount != 0) {
+                                                                    PlaylistMenu(
+                                                                        playlist = playlist,
+                                                                        coroutineScope = scope,
+                                                                        onDismiss = menuState::dismiss
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    )
+                                            )
                                         }
                                     }
                                 }

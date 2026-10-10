@@ -221,11 +221,6 @@ object PlayerJsFetcher {
             }
             response.body.string()
         }
-        if (body == null) {
-            Timber.tag(TAG).e("iframe_api response body is null")
-            return null
-        }
-
         Timber.tag(TAG).d("iframe_api body length: ${body.length}")
         Timber.tag(TAG).v("iframe_api body preview: ${body.take(200)}...")
 
@@ -258,11 +253,6 @@ object PlayerJsFetcher {
             }
             response.body.string()
         }
-        if (body == null) {
-            Timber.tag(TAG).e("player.js response body is null")
-            return null
-        }
-
         Timber.tag(TAG).d("player.js downloaded: ${body.length} chars")
         return body
     }

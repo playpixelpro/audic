@@ -32,9 +32,13 @@ import com.audic.music.utils.cipher.CipherDeobfuscator
 import com.audic.music.utils.YTPlayerUtils.MAIN_CLIENT
 import com.audic.music.utils.potoken.PoTokenGenerator
 import com.audic.music.utils.potoken.PoTokenResult
-import com.audic.music.utils.sabr.EjsNTransformSolver
+import com.audic.music.utils.sabr.EjsCipherSolver
 import com.audic.music.utils.PlaybackLogLevel
 import com.audic.music.utils.PlaybackLogManager
+import com.audic.music.utils.playback.PlaybackClientCatalog
+import com.audic.music.utils.playback.PlaybackClientSelector
+import com.audic.music.utils.playback.PlaybackContentHints
+import com.audic.music.utils.playback.PoTokenRequirement
 import com.music.innertube.models.IpVersion
 import okhttp3.Dns
 import okhttp3.OkHttpClient
@@ -62,6 +66,9 @@ internal fun isAgeRestrictedPlayability(status: String?, reason: String?): Boole
         normalizedReason.contains("age-restricted", ignoreCase = true) ||
         (status == "LOGIN_REQUIRED" && normalizedReason.contains("sign in", ignoreCase = true))
 }
+
+internal fun YouTubeClient?.rejectionKey(): String =
+    this?.let { "${it.clientId}:${it.clientVersion}" } ?: "unknown"
 
 object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
@@ -119,22 +126,6 @@ object YTPlayerUtils {
 
     private val METADATA_CLIENT: YouTubeClient = WEB_REMIX
 
-    private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        WEB_REMIX,
-        VISIONOS,
-        ANDROID_CREATOR,
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        ANDROID_TESTSUITE,
-        ANDROID_VR_1_43_32,
-        ANDROID_VR_NO_AUTH,
-        ANDROID_VR,
-        IOS,
-        IPADOS,
-        MOBILE,
-        WEB,
-        WEB_CREATOR,
-        TVHTML5
-    )
     data class PlaybackData(
         val audioConfig: PlayerResponse.PlayerConfig.AudioConfig?,
         val videoDetails: PlayerResponse.VideoDetails?,
@@ -144,29 +135,37 @@ object YTPlayerUtils {
         val streamExpiresInSeconds: Int,
         val streamHeaders: Map<String, String> = emptyMap(),
         val streamClient: String = "unknown",
+        val streamClientKey: String = "unknown",
+        val requireBoundedRange: Boolean = false,
+        val rangeChunkSizeBytes: Long = 0L,
     )
 
     // Per-video stream-client rejection tracking (mirrors SmartTube's ErrorFixerController ->
     // switchNextFormat / the reference's webRemixFailures). When a resolved stream 403s on the CDN,
     // the failing client is recorded here with a TTL so the next resolution skips it and falls
     // through to the next client instead of returning the same rejected URL.
+    //
+    // The key is a client *identity* (`clientId:clientVersion`), not `clientName`: several
+    // distinct clients share a name (ANDROID_VR / ANDROID_VR_NO_AUTH / ANDROID_VR_1_43_32 all
+    // report "ANDROID_VR"; IOS and IPADOS both report "IOS"), so keying by name made a single
+    // rejection wipe out multiple unrelated ladder slots.
     private val rejectedClients =
         java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.ConcurrentHashMap<String, Long>>()
     private const val REJECT_TTL_MS = 5 * 60 * 1000L
 
-    fun markClientRejected(videoId: String, clientName: String) {
-        if (clientName.isBlank()) return
-        Timber.tag(TAG).w("Marking client rejected for $videoId: $clientName")
+    fun markClientRejected(videoId: String, clientKey: String) {
+        if (clientKey.isBlank()) return
+        Timber.tag(TAG).w("Marking client rejected for $videoId: $clientKey")
         rejectedClients
-            .computeIfAbsent(videoId) { java.util.concurrent.ConcurrentHashMap() }[clientName] =
+            .computeIfAbsent(videoId) { java.util.concurrent.ConcurrentHashMap() }[clientKey] =
             System.currentTimeMillis()
     }
 
-    private fun isClientRejected(videoId: String, clientName: String): Boolean {
+    private fun isClientRejected(videoId: String, clientKey: String): Boolean {
         val map = rejectedClients[videoId] ?: return false
-        val failedAt = map[clientName] ?: return false
+        val failedAt = map[clientKey] ?: return false
         if ((System.currentTimeMillis() - failedAt) !in 0 until REJECT_TTL_MS) {
-            map.remove(clientName)
+            map.remove(clientKey)
             return false
         }
         return true
@@ -249,10 +248,27 @@ object YTPlayerUtils {
 
         suspend fun tryOpus(): Result<PlaybackData> {
             val firstAttempt = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
-            if (firstAttempt.isFailure && YouTube.cookie == null) {
-                Timber.tag(TAG).w("Playback failed for guest. Rotating session and retrying...")
-                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for guest", "Triggering bot detection mitigation (rotating guest session)")
-                BotDetectionMitigator.rotateGuestSession()
+            if (firstAttempt.isFailure) {
+                val hadRejections = rejectedClients[videoId]?.isNotEmpty() == true
+                // Safety valve: the per-video rejection map may have accumulated every usable
+                // client (each CDN 403 poisons a slot for REJECT_TTL_MS), which makes a retry
+                // pointless while it keeps logging "Skipping rejected client ...". Clear it so
+                // the retry walks the full ladder again.
+                clearRejectedClients(videoId)
+                if (YouTube.cookie == null) {
+                    Timber.tag(TAG).w("Playback failed for guest. Rotating session and retrying...")
+                    PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for guest", "Triggering bot detection mitigation (rotating guest session)")
+                    // Awaited on purpose: a fire-and-forget rotation races the next resolve and
+                    // leaves visitorData null mid-swap, silently disabling PoToken generation.
+                    BotDetectionMitigator.rotateGuestSession()
+                } else if (!hadRejections) {
+                    // Logged in, no poisoned clients: the failure is content-related, so don't
+                    // waste a second full pass over the ladder.
+                    Timber.tag(TAG).w("Playback failed (no rejected clients) — not retrying")
+                    return firstAttempt
+                } else {
+                    Timber.tag(TAG).w("Playback failed. Clearing rejected clients and retrying on full ladder...")
+                }
                 val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
                 retryResult.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
                 return retryResult
@@ -411,13 +427,36 @@ object YTPlayerUtils {
         
         
         
-        val startIndex = when {
-            isPrivateTrack -> 1  
-            isAgeRestricted -> 0
-            else -> -1
+        // Data-driven client selection (Phase 2, adapted from InnerTubeX's
+        // ContentAwareFallbackStrategy): the ordered ladder now comes from the catalog and is
+        // filtered by content capabilities, authentication and per-video rejection state.
+        val contentHints = PlaybackContentHints(
+            isAgeRestricted = isAgeRestricted,
+            isUploaded = isPrivateTrack,
+            isLoggedIn = isLoggedIn,
+        )
+        val selectedClients = PlaybackClientSelector.select(
+            hints = contentHints,
+            isRejected = { isClientRejected(videoId, it.rejectionKey()) },
+        ).let { selected ->
+            // Keep a working age-restricted bypass client (it already produced a playable /player
+            // response above) even if its content capabilities would otherwise exclude it.
+            val bypass = usedAgeRestrictedClient
+            if (bypass != null && selected.none { it.rejectionKey() == bypass.rejectionKey() }) {
+                listOf(bypass) + selected
+            } else {
+                selected
+            }
         }
+        Timber.tag(logTag).d("Selected clients (${selectedClients.size}): ${selectedClients.joinToString { it.clientName }}")
 
-        for (clientIndex in (startIndex until STREAM_FALLBACK_CLIENTS.size)) {
+        // The client whose /player response was already fetched above (the main client, or an
+        // age-restricted bypass client). That response is reused instead of issuing a second call.
+        val prefetchedClient = usedAgeRestrictedClient ?: MAIN_CLIENT
+        val prefetchedResponse = retryMainPlayerResponse ?: mainPlayerResponse
+        val isPrefetchedResponseUsable = !isAgeRestrictedFromResponse || usedAgeRestrictedClient != null
+
+        for (client in selectedClients) {
             
             format = null
             streamUrl = null
@@ -425,58 +464,41 @@ object YTPlayerUtils {
 
             // Skip clients whose previously resolved stream was rejected by the CDN (403) for this
             // video, so the next resolution rotates to a different client instead of 403-ing again.
-            val loopClientName =
-                if (clientIndex == -1) (usedAgeRestrictedClient ?: MAIN_CLIENT).clientName
-                else STREAM_FALLBACK_CLIENTS[clientIndex].clientName
-            if (isClientRejected(videoId, loopClientName)) {
-                Timber.tag(logTag).d("Skipping rejected client $loopClientName for $videoId")
+            val clientKey = client.rejectionKey()
+            if (isClientRejected(videoId, clientKey)) {
+                Timber.tag(logTag).d("Skipping rejected client ${client.clientName} for $videoId")
                 continue
             }
 
-            
-            val client: YouTubeClient
-            if (clientIndex == -1) {
-                
-                client = MAIN_CLIENT
-                streamPlayerResponse = retryMainPlayerResponse ?: mainPlayerResponse
-                Timber.tag(logTag).d("Trying stream from MAIN_CLIENT: ${client.clientName}")
+            val usesPrefetched = clientKey == prefetchedClient.rejectionKey() && isPrefetchedResponseUsable
+            if (usesPrefetched) {
+                streamPlayerResponse = prefetchedResponse
+                Timber.tag(logTag).d("Trying stream from prefetched client: ${client.clientName}")
             } else {
-                
-                client = STREAM_FALLBACK_CLIENTS[clientIndex]
-                Timber.tag(logTag).d("Trying fallback client ${clientIndex + 1}/${STREAM_FALLBACK_CLIENTS.size}: ${client.clientName}")
-                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Trying fallback [${clientIndex + 1}/${STREAM_FALLBACK_CLIENTS.size}]", client.clientName)
+                val playerRule = PlaybackClientCatalog.playerPoTokenRule(client)
+                val gvsRule = PlaybackClientCatalog.gvsPoTokenRule(client)
 
-                if (client.loginRequired && !isLoggedIn && YouTube.cookie == null) {
-                    
-                    Timber.tag(logTag).d("Skipping client ${client.clientName} - requires login but user is not logged in")
-                    continue
+                // PoToken-dependent client but generation has not happened / failed: try once, then
+                // skip if it stays unavailable (no token => CDN 403 for GVS-required web clients).
+                if ((playerRule.isUsed || gvsRule.isUsed) && poToken == null) {
+                    if (sessionId == null) {
+                        Timber.tag(logTag).d("Skipping client ${client.clientName} - no session ID for PoToken")
+                        continue
+                    }
+                    Timber.tag(logTag).d("Lazily generating PoToken for client: ${client.clientName}")
+                    try {
+                        poToken = poTokenGenerator.getWebClientPoToken(videoId, sessionId)
+                    } catch (e: Exception) {
+                        Timber.tag(logTag).e(e, "Lazy PoToken generation failed for ${client.clientName}")
+                    }
+                    if (poToken == null) {
+                        Timber.tag(logTag).w("PoToken unavailable for GVS-required client ${client.clientName} — skipping")
+                        continue
+                    }
                 }
 
-            
-            // PoToken fallback mode: if PoToken generation has already failed, skip all
-            // PoToken-dependent web clients since they will also fail without a valid token.
-            if (client.useWebPoTokens && poToken == null) {
-                if (sessionId == null) {
-                    Timber.tag(logTag).d("Skipping client ${client.clientName} - no session ID for PoToken")
-                    continue
-                }
-                Timber.tag(logTag).d("Lazily generating PoToken for fallback web client: ${client.clientName}")
-                try {
-                    poToken = poTokenGenerator.getWebClientPoToken(videoId, sessionId)
-                } catch (e: Exception) {
-                    Timber.tag(logTag).e(e, "Lazy PoToken generation failed for ${client.clientName}")
-                }
-                if (poToken == null) {
-                    Timber.tag(logTag).w("PoToken remains null after generation attempt, marking as failed for this session")
-                    // Mark session as PoToken-failed so subsequent web clients are skipped
-                    // without retrying PoToken generation for each one.
-                }
-            }
-
-                Timber.tag(logTag).d("Fetching player response for fallback client: ${client.clientName}")
-                
-                val clientPoToken = if (client.useWebPoTokens) poToken?.playerRequestPoToken else null
-                
+                Timber.tag(logTag).d("Fetching player response for client: ${client.clientName}")
+                val clientPoToken = if (playerRule.isUsed) poToken?.playerRequestPoToken else null
                 val clientSigTimestamp = if (wasOriginallyAgeRestricted) null else sts
                 streamPlayerResponse =
                     YouTube.player(videoId, playlistId, client, clientSigTimestamp, clientPoToken)
@@ -488,12 +510,12 @@ object YTPlayerUtils {
             
             if (streamPlayerResponse?.playabilityStatus?.status == "OK") {
                 sawOkResponse = true
-                Timber.tag(logTag).d("Player response status OK for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
-                PlaybackLogManager.log(PlaybackLogLevel.INFO, "Player response OK", if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName)
+                Timber.tag(logTag).d("Player response status OK for client: ${client.clientName}")
+                PlaybackLogManager.log(PlaybackLogLevel.INFO, "Player response OK", client.clientName)
 
                 
                 if (isSabrOnlyResponse(streamPlayerResponse)) {
-                    Timber.tag(logTag).w("SABR-only response from client ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName} — no playable URLs, skipping")
+                    Timber.tag(logTag).w("SABR-only response from client ${client.clientName} — no playable URLs, skipping")
                     PlaybackLogManager.log(PlaybackLogLevel.WARNING, "SABR-only response", "Client returned no url/signatureCipher — skipping")
                     continue
                 }
@@ -517,7 +539,7 @@ object YTPlayerUtils {
                     )
 
                 if (format == null) {
-                    Timber.tag(logTag).d("No suitable format found for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
+                    Timber.tag(logTag).d("No suitable format found for client: ${client.clientName}")
                     continue
                 }
 
@@ -529,12 +551,7 @@ object YTPlayerUtils {
                     continue
                 }
 
-                
-                val currentClient = if (clientIndex == -1) {
-                    usedAgeRestrictedClient ?: MAIN_CLIENT
-                } else {
-                    STREAM_FALLBACK_CLIENTS[clientIndex]
-                }
+                val currentClient = client
 
                 // Always apply n-transform if URL contains n= parameter.
                 // YouTube throttling with the n= param now affects ALL client types (ANDROID_VR,
@@ -549,7 +566,7 @@ object YTPlayerUtils {
                         var transformed = CipherDeobfuscator.transformNParamInUrl(streamUrl)
                         if (transformed == streamUrl) {
                             Timber.tag(logTag).w("Cipher n-transform produced no change, falling back to EJS solver")
-                            transformed = EjsNTransformSolver.transformNParamInUrl(streamUrl)
+                            transformed = EjsCipherSolver.transformNParamInUrl(streamUrl)
                         }
                         if (transformed == streamUrl) {
                             Timber.tag(logTag).w("Cipher/EJS n-transform unavailable, trying NewPipe throttling deobfuscation")
@@ -566,12 +583,16 @@ object YTPlayerUtils {
                     }
                 }
 
-                // Append pot= to stream URL for web PoToken clients only.
-                // Non-web clients (ANDROID_VR, IOS) don't use this parameter.
-                if (currentClient.useWebPoTokens && poToken?.streamingDataPoToken != null) {
-                    Timber.tag(logTag).d("Appending pot= parameter to stream URL")
+                // Append pot= to the stream URL when the catalog says this client's GVS request
+                // requires/accepts a token. The token is VIDEO_ID-bound (see PoTokenRule): using a
+                // session-bound token here is what caused universal 403s.
+                val gvsRule = PlaybackClientCatalog.gvsPoTokenRule(currentClient)
+                if (gvsRule.isUsed && poToken?.streamingDataPoToken != null) {
+                    Timber.tag(logTag).d("Appending pot= (${gvsRule.binding}) to stream URL")
                     val separator = if ("?" in streamUrl) "&" else "?"
                     streamUrl = "${streamUrl}${separator}pot=${poToken.streamingDataPoToken}"
+                } else if (gvsRule.requirement == PoTokenRequirement.REQUIRED && poToken?.streamingDataPoToken == null) {
+                    Timber.tag(logTag).w("GVS PoToken required for ${currentClient.clientName} but unavailable — CDN may 403")
                 }
 
                 // SmartTube-style cver fix: the googlevideo CDN can reject the stream (403) if the
@@ -721,6 +742,9 @@ object YTPlayerUtils {
             streamExpiresInSeconds,
             successClient?.streamHeaders().orEmpty(),
             successClient?.clientName ?: "unknown",
+            successClient.rejectionKey(),
+            successClient?.let { PlaybackClientCatalog.rangeRule(it) }?.requireBoundedRange == true,
+            successClient?.let { PlaybackClientCatalog.rangeRule(it) }?.rangeChunkSizeBytes ?: 0L,
         )
     }.onFailure { e ->
         Timber.tag(logTag).e(e, "Playback resolution failed")

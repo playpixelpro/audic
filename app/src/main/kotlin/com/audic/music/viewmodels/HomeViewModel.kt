@@ -72,6 +72,7 @@ data class CommunityPlaylistItem(
     val songs: List<SongItem>
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
@@ -109,6 +110,14 @@ class HomeViewModel @Inject constructor(
             } else {
                 flowOf(null)
             }
+        }
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    val spotifyPlaylists = database.playlistsByNameAsc()
+        .map { playlists ->
+            playlists
+                .filter { it.playlist.id.startsWith("SPOTIFY_PLAYLIST") }
+                .take(6)
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
 

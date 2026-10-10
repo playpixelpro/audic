@@ -19,43 +19,64 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 
-object EjsNTransformSolver {
-    private const val TAG = "audicmusic_EjsNSolver"
+/**
+ * EJS (yt-dlp embedded JS solver) cipher fallback.
+ *
+ * Runs `meriyah.js` + `astring.js` + `yt.solver.core.js` in a WebView to preprocess the YouTube
+ * `player.js`, which yields the `n` throttle function **and** the signature function. This is a
+ * fallback behind the primary `CipherDeobfuscator` cipher WebView: when that path cannot produce a
+ * signature/n (e.g. its WebView renderer died or the extracted function was wrong), the EJS solver
+ * can still recover it.
+ *
+ * Ported (as a basis) from InnerTubeX's EJS solver wiring, reusing audic's already-bundled assets.
+ */
+object EjsCipherSolver {
+    private const val TAG = "audicmusic_EjsCipher"
 
     private var solverWebView: SolverWebView? = null
 
-    
+    /** Applies the EJS n-transform to a URL containing `n=`, or returns [url] unchanged. */
     suspend fun transformNParamInUrl(url: String): String {
         val nMatch = Regex("[?&]n=([^&]+)").find(url)
         if (nMatch == null) {
-            Timber.tag(TAG).d("No 'n' parameter in SABR URL")
+            Timber.tag(TAG).d("No 'n' parameter in URL")
             return url
         }
         val nValue = Uri.decode(nMatch.groupValues[1])
-        Timber.tag(TAG).d("SABR n-param: $nValue")
+        Timber.tag(TAG).d("EJS n-param: $nValue")
 
         return withContext(NonCancellable) {
             val solver = getOrCreateSolver()
-            if (solver == null) {
-                return@withContext url
-            }
-
-            if (!solver.nFunctionAvailable) {
+            if (solver == null || !solver.nFunctionAvailable) {
                 Timber.tag(TAG).e("EJS n-solver not available")
                 return@withContext url
             }
-
             try {
                 val transformed = solver.transformN(nValue)
-                Timber.tag(TAG).d("SABR n-param transformed: $nValue -> $transformed")
+                Timber.tag(TAG).d("EJS n-param transformed: $nValue -> $transformed")
                 url.replaceFirst(
                     Regex("([?&])n=[^&]+"),
                     "$1n=${Uri.encode(transformed)}"
                 )
             } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "SABR n-transform failed: ${e.message}")
+                Timber.tag(TAG).e(e, "EJS n-transform failed: ${e.message}")
                 url
             }
+        }
+    }
+
+    /** Deobfuscates a signature value via EJS, or null when unavailable/failed. */
+    suspend fun transformSignatureValue(sigValue: String): String? = withContext(NonCancellable) {
+        val solver = getOrCreateSolver() ?: return@withContext null
+        if (!solver.sigFunctionAvailable) {
+            Timber.tag(TAG).d("EJS sig-solver not available")
+            return@withContext null
+        }
+        try {
+            solver.solveSignature(sigValue)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "EJS sig-transform failed: ${e.message}")
+            null
         }
     }
 
@@ -71,7 +92,7 @@ object EjsNTransformSolver {
                 return@withContext null
             }
             val (playerJs, hash) = result
-            Timber.tag(TAG).d("Creating EJS n-solver (player hash=$hash, ${playerJs.length} chars)")
+            Timber.tag(TAG).d("Creating EJS cipher solver (player hash=$hash, ${playerJs.length} chars)")
 
             try {
                 val sv = SolverWebView.create(CipherDeobfuscator.appContext, playerJs)
@@ -98,9 +119,14 @@ object EjsNTransformSolver {
     ) {
         private val webView = WebView(context)
         private var nContinuation: Continuation<String>? = null
+        private var sigContinuation: Continuation<String>? = null
 
         @Volatile
         var nFunctionAvailable: Boolean = false
+            private set
+
+        @Volatile
+        var sigFunctionAvailable: Boolean = false
             private set
 
         init {
@@ -148,6 +174,7 @@ object EjsNTransformSolver {
 <script src="yt.solver.core.js"></script>
 <script>
 var _nSolver = null;
+var _sigSolver = null;
 
 function initSolver() {
     try {
@@ -180,7 +207,11 @@ function initSolver() {
                 (new Function('_result', result.preprocessed_player))(resultObj);
 
                 _nSolver = resultObj.n;
-                EjsBridge.onSolverReady((typeof _nSolver === 'function').toString());
+                _sigSolver = resultObj.sig;
+                EjsBridge.onSolverReady(
+                    (typeof _nSolver === 'function') ? '1' : '0',
+                    (typeof _sigSolver === 'function') ? '1' : '0'
+                );
             } catch(e) {
                 EjsBridge.onSolverError(e.toString() + '\n' + (e.stack || ''));
             }
@@ -210,6 +241,23 @@ function transformN(nValue) {
         EjsBridge.onNError(e.toString() + '\n' + (e.stack || ''));
     }
 }
+
+function solveSignature(sigValue) {
+    try {
+        if (!_sigSolver) {
+            EjsBridge.onSigError('Sig solver not available');
+            return;
+        }
+        var result = _sigSolver(sigValue);
+        if (result === undefined || result === null || result === '') {
+            EjsBridge.onSigError('Sig solver returned null/undefined');
+            return;
+        }
+        EjsBridge.onSigResult(String(result));
+    } catch(e) {
+        EjsBridge.onSigError(e.toString() + '\n' + (e.stack || ''));
+    }
+}
 </script>
 </head><body onload="initSolver()"></body></html>"""
 
@@ -225,9 +273,10 @@ function transformN(nValue) {
         }
 
         @JavascriptInterface
-        fun onSolverReady(nAvailable: String) {
-            nFunctionAvailable = nAvailable == "true"
-            Timber.tag(TAG).d("EJS solver ready: n=$nFunctionAvailable")
+        fun onSolverReady(nAvailable: String, sigAvailable: String) {
+            nFunctionAvailable = nAvailable == "1"
+            sigFunctionAvailable = sigAvailable == "1"
+            Timber.tag(TAG).d("EJS solver ready: n=$nFunctionAvailable sig=$sigFunctionAvailable")
             initContinuation.resume(this)
         }
 
@@ -241,14 +290,10 @@ function transformN(nValue) {
             if (!nFunctionAvailable) {
                 throw SabrException("EJS n-transform not available")
             }
-
             return withContext(Dispatchers.Main) {
                 suspendCancellableCoroutine { cont ->
                     nContinuation = cont
-                    webView.evaluateJavascript(
-                        "transformN('${escapeJsString(nValue)}')",
-                        null
-                    )
+                    webView.evaluateJavascript("transformN('${escapeJsString(nValue)}')", null)
                 }
             }
         }
@@ -265,6 +310,32 @@ function transformN(nValue) {
             Timber.tag(TAG).e("N-transform error: $error")
             nContinuation?.resumeWithException(SabrException("EJS n-transform failed: $error"))
             nContinuation = null
+        }
+
+        suspend fun solveSignature(sigValue: String): String {
+            if (!sigFunctionAvailable) {
+                throw SabrException("EJS sig-transform not available")
+            }
+            return withContext(Dispatchers.Main) {
+                suspendCancellableCoroutine { cont ->
+                    sigContinuation = cont
+                    webView.evaluateJavascript("solveSignature('${escapeJsString(sigValue)}')", null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun onSigResult(result: String) {
+            Timber.tag(TAG).d("Sig-transform result: ${result.take(50)}")
+            sigContinuation?.resume(result)
+            sigContinuation = null
+        }
+
+        @JavascriptInterface
+        fun onSigError(error: String) {
+            Timber.tag(TAG).e("Sig-transform error: $error")
+            sigContinuation?.resumeWithException(SabrException("EJS sig-transform failed: $error"))
+            sigContinuation = null
         }
 
         fun close() {

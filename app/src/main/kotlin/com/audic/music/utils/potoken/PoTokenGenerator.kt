@@ -22,6 +22,7 @@ class PoTokenGenerator {
     private data class CachedResult(
         val result: PoTokenResult,
         val sessionId: String,
+        val videoId: String,
         val cachedAtMs: Long,
     )
 
@@ -41,9 +42,11 @@ class PoTokenGenerator {
             return null
         }
 
-        // Return cached PoToken for the same session within a reasonable window
+        // Return cached PoToken for the same session AND video within a reasonable window. The
+        // player-request token is bound to the videoId, so a token minted for another song must
+        // NOT be reused — only the session-scoped streaming token is video-independent.
         val cached = cachedPoTokenResult.get()
-        if (cached != null && cached.sessionId == sessionId &&
+        if (cached != null && cached.sessionId == sessionId && cached.videoId == videoId &&
             System.currentTimeMillis() - cached.cachedAtMs < 30_000
         ) {
             Timber.tag(TAG).d("Returning cached PoToken for session ${sessionId.take(20)}...")
@@ -53,7 +56,7 @@ class PoTokenGenerator {
         return try {
             Timber.tag(TAG).d("Calling runBlocking to generate poToken...")
             val result = runBlocking { getWebClientPoToken(videoId, sessionId, forceRecreate = false) }
-            cachedPoTokenResult.set(CachedResult(result, sessionId, System.currentTimeMillis()))
+            cachedPoTokenResult.set(CachedResult(result, sessionId, videoId, System.currentTimeMillis()))
             result
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "poToken generation exception: ${e.javaClass.simpleName}: ${e.message}")
@@ -131,6 +134,13 @@ class PoTokenGenerator {
 
         Timber.tag(TAG).d("poToken generated successfully: player=${playerPot.take(20)}..., streaming=${streamingPot.take(20)}...")
 
-        return PoTokenResult(playerPot, streamingPot)
+        // Binding order matters. The googlevideo stream URL's `pot=` must be bound to the VIDEO ID
+        // (content binding), while the /player request carries the SESSION/visitor-bound token.
+        // The previous order passed the session token as the stream pot, so googlevideo rejected
+        // every web-client stream with HTTP 403. (Matches the working Metrolist/reference binding.)
+        return PoTokenResult(
+            playerRequestPoToken = streamingPot,
+            streamingDataPoToken = playerPot,
+        )
     }
 }

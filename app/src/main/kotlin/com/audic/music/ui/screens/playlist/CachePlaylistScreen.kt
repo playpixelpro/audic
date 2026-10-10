@@ -462,7 +462,7 @@ private fun CachePlaylistHeader(
     modifier: Modifier = Modifier
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    val cacheLength = remember(songs) { songs.fastSumBy { it.song.duration ?: 0 } }
+    val cacheLength = remember(songs) { songs.fastSumBy { it.song.duration } }
 
     Column(
         modifier = modifier

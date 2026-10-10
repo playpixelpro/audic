@@ -9,6 +9,7 @@ import com.audic.music.utils.cipher.CipherDeobfuscator
 import com.audic.music.utils.PlaybackLogManager
 import com.audic.music.utils.PlaybackLogLevel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicInteger
@@ -18,6 +19,10 @@ object BotDetectionMitigator {
     private const val TAG = "BotDetectionMitigator"
 
     private val failureCount = AtomicInteger(0)
+
+    // Single-flight guard: overlapping rotations used to clobber each other and leave the
+    // session in a half-rotated state. Only one rotation runs at a time.
+    private val rotationMutex = Mutex()
 
     
     
@@ -60,35 +65,42 @@ object BotDetectionMitigator {
 
     
     suspend fun rotateGuestSession() {
-        Timber.tag(TAG).i("Rotating guest session to bypass bot detection...")
-        PlaybackLogManager.log(
-            PlaybackLogLevel.BOT, 
-            "Rotating guest session", 
-            "Bypassing bot detection by refreshing visitorData (locale preserved)"
-        )
-        
-        withContext(Dispatchers.IO) {
-            
-            val currentLocale = YouTube.locale
-
-            
-            YouTube.visitorData = null
-            
-            YouTube.refreshVisitorData().onSuccess { newData ->
-                Timber.tag(TAG).i("New visitorData obtained successfully for region ${currentLocale.gl}.")
-                
-                
-                CipherDeobfuscator.appContext.dataStore.edit { settings ->
-                    settings[VisitorDataKey] = newData
-                }
-            }.onFailure { e ->
-                Timber.tag(TAG).e(e, "Failed to refresh visitorData during rotation")
-                
-                YouTube.locale = currentLocale
-            }
+        // Single-flight: if a rotation is already running, let it finish instead of starting a
+        // second one that would race the first and null/stale the session.
+        if (!rotationMutex.tryLock()) {
+            Timber.tag(TAG).d("Guest session rotation already in progress, skipping duplicate")
+            return
         }
-        
-        failureCount.set(0)
+        try {
+            PlaybackLogManager.log(
+                PlaybackLogLevel.BOT,
+                "Rotating guest session",
+                "Bypassing bot detection by refreshing visitorData (locale preserved)"
+            )
+
+            withContext(Dispatchers.IO) {
+                val currentLocale = YouTube.locale
+
+                // Fetch the new visitorData FIRST and swap it in only on success. Never null the
+                // current session first: concurrent resolves would observe visitorData == null
+                // and silently skip PoToken generation (see YTPlayerUtils.resolvePlaybackData).
+                YouTube.refreshVisitorData().onSuccess { newData ->
+                    Timber.tag(TAG).i("New visitorData obtained successfully for region ${currentLocale.gl}.")
+
+                    CipherDeobfuscator.appContext.dataStore.edit { settings ->
+                        settings[VisitorDataKey] = newData
+                    }
+                }.onFailure { e ->
+                    Timber.tag(TAG).e(e, "Failed to refresh visitorData during rotation")
+
+                    YouTube.locale = currentLocale
+                }
+            }
+
+            failureCount.set(0)
+        } finally {
+            rotationMutex.unlock()
+        }
     }
 
     

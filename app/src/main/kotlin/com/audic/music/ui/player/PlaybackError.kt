@@ -42,17 +42,21 @@ fun PlaybackError(
     
     
     
-    val isAgeRestricted = rawErrorMessage.contains("age", ignoreCase = true) ||
-            rawErrorMessage.contains("Sign in to confirm your age", ignoreCase = true) ||
-            rawErrorMessage.contains("LOGIN_REQUIRED", ignoreCase = true) ||
+    // Only real age-gate signals should surface the age-restricted message. A generic HTTP 403 is
+    // usually a CDN/stream rejection, NOT an age gate, and mislabeling it is confusing.
+    val isAgeRestricted = rawErrorMessage.contains("Sign in to confirm your age", ignoreCase = true) ||
             rawErrorMessage.contains("confirm your age", ignoreCase = true) ||
-            rawErrorMessage.contains("403", ignoreCase = true) ||
-            rawErrorMessage.contains("Response code: 403", ignoreCase = true)
-    
-    val errorMessage = if (isAgeRestricted) {
-        "This app does not support playing age-restricted songs. We are working on fixing this issue."
-    } else {
-        rawErrorMessage
+            rawErrorMessage.contains("age-restricted", ignoreCase = true) ||
+            rawErrorMessage.contains("AGE_CHECK_REQUIRED", ignoreCase = true) ||
+            rawErrorMessage.contains("LOGIN_REQUIRED", ignoreCase = true)
+
+    val isStreamRejected = rawErrorMessage.contains("403", ignoreCase = true) ||
+            rawErrorMessage.contains("410", ignoreCase = true)
+
+    val errorMessage = when {
+        isAgeRestricted -> stringResource(R.string.error_age_restricted)
+        isStreamRejected -> stringResource(R.string.error_stream_rejected)
+        else -> rawErrorMessage
     }
     
     Column(

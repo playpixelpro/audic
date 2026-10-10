@@ -35,8 +35,8 @@ android {
         applicationId = "com.audic.music"
         minSdk = 26
         targetSdk = 35
-        versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 17
-        versionName = project.findProperty("versionName")?.toString() ?: "2.0.5"
+        versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 18
+        versionName = project.findProperty("versionName")?.toString() ?: "2.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -120,8 +120,11 @@ android {
     }
 
     signingConfigs {
+        val persistentKeystore = rootDir.resolve("persistent-debug.keystore")
+        val userDebugKeystore = project.file("${System.getProperty("user.home")}/.android/debug.keystore")
+
         create("persistentDebug") {
-            storeFile = project.file("persistent-debug.keystore")
+            storeFile = if (persistentKeystore.exists()) persistentKeystore else project.file("persistent-debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
@@ -136,7 +139,11 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
             storePassword = "android"
-            storeFile = project.file("${System.getProperty("user.home")}/.android/debug.keystore")
+            if (persistentKeystore.exists()) {
+                storeFile = persistentKeystore
+            } else if (userDebugKeystore.exists()) {
+                storeFile = userDebugKeystore
+            }
         }
     }
 
@@ -170,7 +177,6 @@ android {
     kotlin {
         jvmToolchain(21)
         compilerOptions {
-            freeCompilerArgs.add("-Xannotation-default-target=param-property")
             jvmTarget.set(JvmTarget.JVM_21)
         }
     }

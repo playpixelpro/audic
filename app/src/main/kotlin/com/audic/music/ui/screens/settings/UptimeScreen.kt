@@ -29,6 +29,10 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
+// Some providers (notably lrclib.net behind Cloudflare) reject the default
+// `okhttp/x.y.z` User-Agent with HTTP 520, which would show as "Offline".
+private const val SERVICE_CHECK_USER_AGENT = "AudicMusic/2.0.6"
+
 data class ServiceStatus(
     val name: String, 
     val url: () -> String, 
@@ -106,7 +110,12 @@ highlightKey: String? = null) {
                             for (urlToTry in urlsToTry) {
                                 try {
                                     val startTime = System.currentTimeMillis()
-                                    val request = Request.Builder().url(urlToTry).head().build()
+                                    val request =
+                                        Request.Builder()
+                                            .url(urlToTry)
+                                            .head()
+                                            .header("User-Agent", SERVICE_CHECK_USER_AGENT)
+                                            .build()
                                     client.newCall(request).execute().use { response ->
                                         if (response.isSuccessful || response.isRedirect || response.code in 200..405) {
                                             latency = System.currentTimeMillis() - startTime
