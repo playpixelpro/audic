@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.6
+
+- **Playback fix**: YouTube web GVS PO tokens are now bound to the video ID instead of the session, fixing universal HTTP 403 / "no playable stream URL" failures. Stream recovery was also hardened with a data-driven client catalog, bounded-range requests, an EJS signature fallback, and single-flight guest session rotation.
+- **LRCLib fix**: The uptime check and the lyrics client now send a real User-Agent. Cloudflare returned HTTP 520 for the default `okhttp` User-Agent, which made LRCLib show as "Offline".
+- **Home**: Spotify playlists are now surfaced on the Home screen.
+- **Toolchain**: Gradle 9.8.1, AGP 9.4.1, Kotlin 2.4.20, KSP 2.3.12, Hilt 2.60.1, Ktor 3.6.0 — with all Kotlin 2.4 compiler warnings cleared.
+- **Repo cleanup**: Stopped tracking generated build artifacts (output metadata, baseline profiles, problems report) and trimmed `FUNDING.yml`.
+
 ## 2.0.5
 
 - **Spotify login fix**: Spotify changed the CSS on their login page, collapsing the form and leaving a blank screen. Injected a layout fix (un-collapse `html`/`body`/`main` heights) plus a desktop user-agent and hardened WebView settings so the login form renders and `sp_dc` is captured correctly.
